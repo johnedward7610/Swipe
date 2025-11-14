@@ -3,17 +3,20 @@ name: Deploy to Firebase Hosting
 on:
   push:
     branches:
-      - main  # branch to deploy
+      - main  # Change to your branch if different
 
-jobs: 
+jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
       - name: Deploy to Firebase
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: "${{ secrets.1//0eraRD6Kj98uKCgYIARAAGA4SNwF-L9IrnE_j_8_SK06D8aDHb6bsBYy7d-4fC-vvkrt0hLEDCi4pWS9mdhSEDWdepLRs9gHyisY }}"
-          projectId: "
-swipe-f90ed"
-          target: "default"
+        env:
+          FIREBASE_TOKEN: ${{ secrets.1//0eraRD6Kj98uKCgYIARAAGA4SNwF-L9IrnE_j_8_SK06D8aDHb6bsBYy7d-4fC-vvkrt0hLEDCi4pWS9mdhSEDWdepLRs9gHyisY }}
+        run: firebase deploy --project 
+swipe-f90ed --only hosting
