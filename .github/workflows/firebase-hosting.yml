@@ -13,7 +13,7 @@ jobs:
       - name: Deploy to Firebase
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          repoToken: "${{ secrets.GITHUB_TOKEN }}"
+          repoToken: "${{ secrets.1//0eraRD6Kj98uKCgYIARAAGA4SNwF-L9IrnE_j_8_SK06D8aDHb6bsBYy7d-4fC-vvkrt0hLEDCi4pWS9mdhSEDWdepLRs9gHyisY }}"
           projectId: "
 swipe-f90ed"
           target: "default"
