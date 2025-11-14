@@ -21,6 +21,6 @@ jobs:
       # Deploy to Firebase Hosting
       - name: Deploy to Firebase
         env:
-          FIREBASE_TOKEN: ${{ secrets.1//0eraRD6Kj98uKCgYIARAAGA4SNwF-L9IrnE_j_8_SK06D8aDHb6bsBYy7d-4fC-vvkrt0hLEDCi4pWS9mdhSEDWdepLRs9gHyisY }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: firebase deploy --project 
 swipe-f90ed --only hosting
