@@ -26,7 +26,7 @@ if (registerBtn) {
     try {
       await createUserWithEmailAndPassword(auth, email, password);
       alert("Registered successfully!");
-      window.location.href = "login.html";
+      window.location.href = "Login.html";
     } catch (error) {
       alert(error.message);
     }
