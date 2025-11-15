@@ -1,12 +1,15 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword }
-  from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
-// Your Firebase config
+// ✅ FIX THIS: Use your EXACT config from Firebase Console
 const firebaseConfig = {
-  apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
+  apiKey: "YOUR_API_KEY",
   authDomain: "swipe-f90ed.firebaseapp.com",
-  projectId: "swipe-f90ed       ",
+  projectId: "swipe-f90ed",
+  storageBucket: "swipe-f90ed.firebasestorage.app",
+  messagingSenderId: "360540214416",
+  appId: "1:360540214416:web:3e92fe77e5c93283d47415"
 };
 
 // Initialize Firebase
@@ -17,8 +20,9 @@ const auth = getAuth(app);
 const registerBtn = document.getElementById("registerBtn");
 if (registerBtn) {
   registerBtn.addEventListener("click", async () => {
-    const email = document.getElementById("email").value;
+    const email = document.getElementById("email").value.trim();
     const password = document.getElementById("password").value;
+    
     try {
       await createUserWithEmailAndPassword(auth, email, password);
       alert("Registered successfully!");
@@ -33,16 +37,15 @@ if (registerBtn) {
 const loginBtn = document.getElementById("loginBtn");
 if (loginBtn) {
   loginBtn.addEventListener("click", async () => {
-    const email = document.getElementById("email").value;
+    const email = document.getElementById("email").value.trim();
     const password = document.getElementById("password").value;
-
+    
     try {
       await signInWithEmailAndPassword(auth, email, password);
       alert("Logged in successfully!");
-      // Redirect to dashboard or profile
- window.location.href = "profile.html";
+      window.location.href = "profile.html";
     } catch (error) {
       alert(error.message);
     }
   });
-}
+  }
