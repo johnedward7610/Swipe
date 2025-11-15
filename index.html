@@ -1,18 +1,429 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Register</title>
-</head>
-<body>
-  <h2>Register11</h2>
-  
-  <input type="email" id="email" placeholder="Email"><br><br>
-  <input type="password" id="password" placeholder="Password"><br><br>
-  <button id="registerBtn">Register</button>
-  <p>Already have an account? <a href="Login.html">Login here</a></p>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swipe</title>
 
-  <script type="module" src="auth.js"></script>
+<!-- Firebase SDKs -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+  import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  // ✅ Replace with your Firebase config
+  const firebaseConfig = {
+    apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
+    authDomain: "swipe-f90ed.firebaseapp.com",
+    projectId: "swipe-f90ed",
+    storageBucket: "swipe-f90ed.firebasestorage.app",
+    messagingSenderId: "360540214416",
+    appId: "1:360540214416:web:3e92fe77e5c93283d47415",
+    measurementId: "G-4SV32V4N0N"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // Export for usage in script below
+  window.firebaseApp = app;
+  window.auth = auth;
+  window.db = db;
+</script>
+
+<style>
+/* ============================================================
+   BASE RESET & THEME VARIABLES
+   ============================================================ */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Light Theme Colors */
+:root {
+  --bg: #f4f6ff;
+  --card-bg: #ffffff;
+  --text: #1b1b1b;
+  --subtext: #555;
+  --primary: #6e8ef5;
+  --primary-light: #a8b7ff;
+  --input-bg: #ffffff;
+  --input-border: #cccccc;
+  --input-text: #222;
+}
+
+/* Dark Theme Colors */
+body.dark {
+  --bg: #0f1117;
+  --card-bg: #141821;
+  --text: #ffffff;
+  --subtext: #b9b9b9;
+  --primary: #6e8ef5;
+  --primary-light: #8ea2ff;
+  --input-bg: #1c2030;
+  --input-border: #2c3142;
+  --input-text: #e8e8e8;
+}
+
+/* ============================================================
+   FULL PAGE LAYOUT
+   ============================================================ */
+.auth-container {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+}
+
+/* The main card holding Login & Sign-up */
+.auth-box {
+  width: 380px;
+  padding: 32px 28px;
+  background: var(--card-bg);
+  border-radius: 20px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+  transition: all 0.35s ease;
+  position: relative;
+}
+
+/* Expands smoothly when switching to sign-up */
+.auth-box.expand {
+  width: 430px;
+  padding: 38px 32px;
+}
+
+/* ============================================================
+   HEADINGS & TEXT
+   ============================================================ */
+.auth-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 10px 0;
+}
+
+.auth-desc {
+  font-size: 14px;
+  color: var(--subtext);
+  margin-bottom: 24px;
+}
+
+/* ============================================================
+   INPUT GROUPS (fields, labels, select, etc.)
+   ============================================================ */
+
+.input-group {
+  width: 100%;
+  margin-bottom: 16px;
+  position: relative;    /* Required for custom arrow */
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+/* Inputs */
+.input-group input,
+.input-group select {
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  color: var(--input-text);
+  font-size: 14px;
+  transition: border 0.2s;
+}
+
+/* Focus effect */
+.input-group input:focus,
+.input-group select:focus {
+  border-color: var(--primary);
+  outline: none;
+}
+
+/* Hide native arrows from all browsers */
+.input-group select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+
+  padding-right: 44px; /* Space for custom arrow */
+}
+
+/* Hide the IE/Edge default arrow */
+.input-group select::-ms-expand {
+  display: none;
+}
+
+/* Safety: hide WebKit weird inner elements */
+.input-group select::-webkit-search-decoration,
+.input-group select::-webkit-search-cancel-button,
+.input-group select::-webkit-search-results-button,
+.input-group select::-webkit-search-results-decoration {
+  display: none;
+}
+
+/* Create ONE custom arrow */
+.input-group::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+
+  /* Triangle arrow */
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 8px solid var(--primary);
+}
+
+/* Dark mode arrow color */
+body.dark .input-group::after {
+  border-top-color: #e6e6e6;
+}
+
+/* ============================================================
+   BUTTON STYLING
+   ============================================================ */
+.auth-btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  background: var(--primary);
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.25s;
+}
+
+.auth-btn:hover {
+  background: var(--primary-light);
+}
+
+/* Link to switch forms */
+.switch-link {
+  display: block;
+  text-align: center;
+  margin-top: 14px;
+  color: var(--primary);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* ============================================================
+   DARK MODE TOGGLE BUTTON
+   ============================================================ */
+.theme-toggle {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 22px;
+  color: var(--text);
+}
+
+/* ===== Your CSS from previous code ===== */
+/* Include your body, auth-box, input-group, buttons, dark mode styles etc. */
+* { box-sizing: border-box; }
+body { margin:0; font-family:"Inter",sans-serif; transition: background 0.3s, color 0.3s; }
+:root { --bg:#f4f6ff; --card-bg:#fff; --text:#1b1b1b; --subtext:#555; --primary:#6e8ef5; --primary-light:#a8b7ff; --input-bg:#fff; --input-border:#ccc; --input-text:#222; }
+body.dark { --bg:#0f1117; --card-bg:#141821; --text:#fff; --subtext:#b9b9b9; --primary:#6e8ef5; --primary-light:#8ea2ff; --input-bg:#1c2030; --input-border:#2c3142; --input-text:#e8e8e8; }
+.auth-container { min-height:100vh; display:flex; justify-content:center; align-items:center; padding:40px 20px; background:var(--bg); }
+.auth-box { width:380px; padding:32px 28px; background:var(--card-bg); border-radius:20px; box-shadow:0 8px 25px rgba(0,0,0,0.08); transition: all 0.35s ease; position:relative; }
+.auth-box.expand { width:430px; padding:38px 32px; }
+.auth-title { font-size:26px; font-weight:700; color:var(--text); margin:0 0 10px 0; }
+.auth-desc { font-size:14px; color:var(--subtext); margin-bottom:24px; }
+.input-group { width:100%; margin-bottom:16px; position:relative; }
+.input-group label { display:block; margin-bottom:6px; font-size:14px; color:var(--text); }
+.input-group input, .input-group select { width:100%; padding:14px 16px; background:var(--input-bg); border:1px solid var(--input-border); border-radius:10px; color:var(--input-text); font-size:14px; transition:border 0.2s; }
+.input-group input:focus, .input-group select:focus { border-color:var(--primary); outline:none; }
+.input-group select { -webkit-appearance:none; -moz-appearance:none; appearance:none; padding-right:44px; }
+.input-group select::-ms-expand { display:none; }
+.input-group::after { content:""; position:absolute; right:14px; top:50%; transform:translateY(-50%); pointer-events:none; width:0; height:0; border-left:7px solid transparent; border-right:7px solid transparent; border-top:8px solid var(--primary); }
+body.dark .input-group::after { border-top-color:#e6e6e6; }
+.auth-btn { width:100%; padding:14px; border:none; border-radius:12px; background:var(--primary); color:white; font-size:15px; font-weight:600; cursor:pointer; transition: background 0.25s; }
+.auth-btn:hover { background:var(--primary-light); }
+.switch-link { display:block; text-align:center; margin-top:14px; color:var(--primary); font-size:14px; cursor:pointer; }
+.theme-toggle { position:absolute; top:14px; right:14px; background:transparent; border:none; cursor:pointer; font-size:22px; color:var(--text); }
+</style>
+</head>
+
+<body>
+<div class="auth-container">
+  <div class="auth-box" id="authBox">
+    <button class="theme-toggle" id="themeToggle">🌙</button>
+
+    <!-- LOGIN -->
+    <div id="loginSection">
+      <h2 class="auth-title">Welcome Back</h2>
+      <p class="auth-desc">Log in to continue your journey.</p>
+
+      <div class="input-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="Enter your email" required/>
+      </div>
+
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="Enter your password" required/>
+      </div>
+
+      <button class="auth-btn" id="loginBtn">Log In</button>
+      <span class="switch-link" id="goSignup">Don't have an account? Sign up</span>
+    </div>
+
+    <!-- SIGNUP -->
+    <div id="signupSection" style="display:none;">
+      <h2 class="auth-title">Create Account</h2>
+      <p class="auth-desc">Join us and start your journey today.</p>
+
+      <div class="input-group">
+        <label>Full Name</label>
+        <input type="text" id="signupName" placeholder="Enter your full name" required/>
+      </div>
+
+      <div class="input-group">
+        <label>Email</label>
+        <input type="email" id="signupEmail" placeholder="Enter your email" required/>
+      </div>
+
+      <div class="input-group">
+        <label>Gender</label>
+        <select id="signupGender">
+          <option selected disabled>Select gender</option>
+          <option>Male</option>
+          <option>Female</option>
+          <option>Other</option>
+        </select>
+      </div>
+
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="signupPassword" placeholder="Create a password" required/>
+      </div>
+
+      <div class="input-group">
+        <label>Confirm Password</label>
+        <input type="password" id="signupConfirmPassword" placeholder="Confirm your password" required/>
+      </div>
+
+      <button class="auth-btn" id="registerBtn">Create Account</button>
+      <span class="switch-link" id="goLogin">Already have an account? Log in</span>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const auth = window.auth;
+const db = window.db;
+
+// ================= FORM SWITCHING =================
+const loginSection = document.getElementById("loginSection");
+const signupSection = document.getElementById("signupSection");
+const authBox = document.getElementById("authBox");
+
+document.getElementById("goSignup").addEventListener("click", () => {
+  authBox.classList.add("expand");
+  loginSection.style.display = "none";
+  signupSection.style.display = "block";
+});
+
+document.getElementById("goLogin").addEventListener("click", () => {
+  authBox.classList.remove("expand");
+  signupSection.style.display = "none";
+  loginSection.style.display = "block";
+});
+
+// ================= DARK MODE =================
+const themeToggle = document.getElementById("themeToggle");
+themeToggle.addEventListener("click", () => {
+  document.body.classList.toggle("dark");
+  themeToggle.textContent = document.body.classList.contains("dark") ? "☀" : "🌙";
+});
+
+// ================= SIGNUP =================
+document.getElementById("registerBtn").addEventListener("click", async () => {
+  const fullName = document.getElementById("signupName").value.trim();
+  const email = document.getElementById("signupEmail").value.trim();
+  const gender = document.getElementById("signupGender").value;
+  const password = document.getElementById("signupPassword").value;
+  const confirmPassword = document.getElementById("signupConfirmPassword").value;
+
+  if (!fullName || !email || !gender || !password || !confirmPassword) {
+    alert("Please fill all fields.");
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    alert("Passwords do not match.");
+    return;
+  }
+
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    await setDoc(doc(db, "users", user.uid), {
+      fullName,
+      email,
+      gender,
+      createdAt: new Date()
+    });
+
+    alert("Registered successfully!");
+    window.location.href = "profile.html";
+
+  } catch (error) {
+    alert(error.message);
+  }
+});
+
+// ================= LOGIN =================
+document.getElementById("loginBtn").addEventListener("click", async () => {
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+
+  if (!email || !password) {
+    alert("Enter email and password.");
+    return;
+  }
+
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    alert("Logged in successfully!");
+    window.location.href = "profile.html";
+  } catch (error) {
+    alert(error.message);
+  }
+});
+</script>
 </body>
-    </html>
+  </html>
