@@ -4,7 +4,7 @@ from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
 // ✅ FIX THIS: Use your EXACT config from Firebase Console
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
+  apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
   authDomain: "swipe-f90ed.firebaseapp.com",
   projectId: "swipe-f90ed",
   storageBucket: "swipe-f90ed.appspot.com",
