@@ -7,7 +7,7 @@ const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
   authDomain: "swipe-f90ed.firebaseapp.com",
   projectId: "swipe-f90ed",
-  storageBucket: "swipe-f90ed.firebasestorage.app",
+  storageBucket: "swipe-f90ed.appspot.com",
   messagingSenderId: "360540214416",
   appId: "1:360540214416:web:3e92fe77e5c93283d47415"
 };
