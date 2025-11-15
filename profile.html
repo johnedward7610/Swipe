@@ -6,7 +6,9 @@
 <title>Profile</title>
 <style>
 body { font-family: sans-serif; background: #f4f6ff; display:flex; justify-content:center; align-items:center; min-height:100vh; }
-.profile-card { background:white; padding:40px; border-radius:16px; box-shadow:0 6px 20px rgba(0,0,0,0.1); text-align:center; }
+.profile-card { background:white; padding:40px; border-radius:16px; box-shadow:0 6px 20px rgba(0,0,0,0.1); text-align:center; width:300px; }
+button { padding:10px 20px; border:none; border-radius:8px; background:#6e8ef5; color:white; cursor:pointer; margin-top:20px; }
+button:hover { background:#8ea2ff; }
 </style>
 </head>
 <body>
@@ -19,11 +21,25 @@ body { font-family: sans-serif; background: #f4f6ff; display:flex; justify-conte
 </div>
 
 <script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
-const auth = window.auth;
-const db = window.db;
+// ✅ Replace with your Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
+  authDomain: "swipe-f90ed.firebaseapp.com",
+  projectId: "swipe-f90ed",
+  storageBucket: "swipe-f90ed.firebasestorage.app",
+  messagingSenderId: "360540214416",
+  appId: "1:360540214416:web:3e92fe77e5c93283d47415",
+  measurementId: "G-4SV32V4N0N"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
 const profileName = document.getElementById("profileName");
 const profileEmail = document.getElementById("profileEmail");
@@ -32,11 +48,11 @@ const logoutBtn = document.getElementById("logoutBtn");
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
+    // Not logged in → redirect to login page
     window.location.href = "index.html";
     return;
   }
 
-  // Try to get Firestore document
   try {
     const docRef = doc(db, "users", user.uid);
     const docSnap = await getDoc(docRef);
@@ -47,7 +63,7 @@ onAuthStateChanged(auth, async (user) => {
       profileEmail.textContent = data.email || user.email;
       profileGender.textContent = data.gender || "Not provided";
     } else {
-      // Document doesn't exist → fallback to Firebase Auth info
+      // Document doesn't exist → fallback to Auth info
       profileName.textContent = user.displayName || user.email;
       profileEmail.textContent = user.email;
       profileGender.textContent = "Not provided";
@@ -61,7 +77,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// Log out
+// Logout
 logoutBtn.addEventListener("click", async () => {
   await signOut(auth);
   window.location.href = "index.html";
