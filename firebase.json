@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": "Swipe",
+    "public": ".",
     "ignore": [
       "firebase.json",
       "**/.*",
