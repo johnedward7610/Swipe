@@ -7,9 +7,10 @@ const firebaseConfig = {
   apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
   authDomain: "swipe-f90ed.firebaseapp.com",
   projectId: "swipe-f90ed",
-  storageBucket: "swipe-f90ed.appspot.com",
+  storageBucket: "swipe-f90ed.firebasestorage.app",
   messagingSenderId: "360540214416",
-  appId: "1:360540214416:web:3e92fe77e5c93283d47415"
+  appId: "1:360540214416:web:3e92fe77e5c93283d47415",
+  measurementId: "G-4SV32V4N0N"
 };
 
 // Initialize Firebase
