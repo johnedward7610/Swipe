@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>User List</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f4f6ff; }
+    h2 { color: #333; }
+    table { width: 100%; border-collapse: collapse; background: white; }
+    th, td { padding: 12px; border-bottom: 1px solid #ccc; }
+    th { background: #6e8ef5; color: white; text-align: left; }
+  </style>
+</head>
+<body>
+
+<h2>Registered Users</h2>
+<p id="loading">Loading users...</p>
+
+<table id="userTable" style="display:none;">
+  <thead>
+    <tr>
+      <th>Full Name</th>
+      <th>Email</th>
+      <th>Gender</th>
+      <th>Date Joined</th>
+    </tr>
+  </thead>
+  <tbody id="userRows"></tbody>
+</table>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
+    authDomain: "swipe-f90ed.firebaseapp.com",
+    projectId: "swipe-f90ed",
+    storageBucket: "swipe-f90ed.firebasestorage.app",
+    messagingSenderId: "360540214416",
+    appId: "1:360540214416:web:3e92fe77e5c93283d47415",
+    measurementId: "G-4SV32V4N0N"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  async function loadUsers() {
+    const usersSnapshot = await getDocs(collection(db, "users"));
+    const rows = document.getElementById("userRows");
+
+    usersSnapshot.forEach(doc => {
+      const u = doc.data();
+      rows.innerHTML += `
+        <tr>
+          <td>${u.fullName}</td>
+          <td>${u.email}</td>
+          <td>${u.gender}</td>
+          <td>${u.createdAt?.toDate().toLocaleString() || ""}</td>
+        </tr>
+      `;
+    });
+
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("userTable").style.display = "table";
+  }
+
+  loadUsers();
+</script>
+
+</body>
+</html>
