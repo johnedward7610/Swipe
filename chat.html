@@ -57,12 +57,17 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   const currentUid = user.uid;
+
+  // ✅ Consistent chatId generation
   const chatId = [currentUid, chatWithUid].sort().join("_");
+  console.log("Current UID:", currentUid, "Chat with UID:", chatWithUid, "Chat ID:", chatId);
+
   const messagesRef = collection(db, "chats", chatId, "messages");
   const q = query(messagesRef, orderBy("timestamp", "asc"));
 
-  // Real-time listener
+  // 🔹 Real-time listener
   onSnapshot(q, (snapshot) => {
+    console.log("Snapshot docs:", snapshot.docs.map(d => d.data()));
     messagesDiv.innerHTML = "";
     snapshot.forEach(doc => {
       const m = doc.data();
@@ -75,19 +80,24 @@ onAuthStateChanged(auth, async (user) => {
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
 
-  // Send message
+  // 🔹 Send message
   sendBtn.addEventListener("click", async () => {
     const text = chatInput.value.trim();
     if (text === "") return;
-    await addDoc(messagesRef, {
-      sender: currentUid,
-      receiver: chatWithUid,
-      text: text,
-      timestamp: serverTimestamp()
-    });
-    chatInput.value = "";
+    try {
+      await addDoc(messagesRef, {
+        sender: currentUid,
+        receiver: chatWithUid,
+        text: text,
+        timestamp: serverTimestamp()
+      });
+      chatInput.value = "";
+    } catch (err) {
+      console.error("Error sending message:", err);
+    }
   });
 });
 </script>
+
 </body>
 </html>
