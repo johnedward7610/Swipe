@@ -37,8 +37,8 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth();
-const db = getFirestore();
+const auth = getAuth(app);
+const db = getFirestore(app);
 
 const chatWithUid = localStorage.getItem("chatWithUid");
 const chatWithName = localStorage.getItem("chatWithName");
@@ -89,6 +89,5 @@ onAuthStateChanged(auth, async (user) => {
   });
 });
 </script>
-
 </body>
 </html>
