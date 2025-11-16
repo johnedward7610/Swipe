@@ -10,6 +10,7 @@ h2 { color: #333; }
 table { width: 100%; border-collapse: collapse; background: white; }
 th, td { padding: 12px; border-bottom: 1px solid #ccc; }
 th { background: #6e8ef5; color: white; text-align: left; }
+tr:hover { background: #e0e0ff; cursor: pointer; }
 #errorBox { color: red; font-weight: bold; margin-top: 20px; }
 button { padding: 10px 20px; margin-bottom: 20px; border: none; border-radius: 8px; background: #6e8ef5; color: white; cursor: pointer; }
 button:hover { background: #8ea2ff; }
@@ -59,32 +60,47 @@ const userTable = document.getElementById("userTable");
 const userRows = document.getElementById("userRows");
 const logoutBtn = document.getElementById("logoutBtn");
 
-// 🔹 Force login
+// Logout button
+logoutBtn.addEventListener("click", async () => {
+  await signOut(auth);
+  window.location.href = "index.html";
+});
+
+// Force login & load users
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    window.location.href = "index.html"; // redirect to login if not signed in
+    window.location.href = "index.html";
     return;
   }
 
-  // Load all users
   try {
     const usersSnapshot = await getDocs(collection(db, "users"));
-
     if (usersSnapshot.empty) {
       loadingText.innerText = "No users found.";
       return;
     }
 
+    userRows.innerHTML = "";
     usersSnapshot.forEach(doc => {
       const u = doc.data();
-      userRows.innerHTML += `
-        <tr>
-          <td>${u.fullName || ""}</td>
-          <td>${u.email || ""}</td>
-          <td>${u.gender || ""}</td>
-          <td>${u.createdAt?.toDate ? u.createdAt.toDate().toLocaleString() : ""}</td>
-        </tr>
+      const tr = document.createElement("tr");
+
+      // Skip yourself
+      if (doc.id === user.uid) return;
+
+      tr.innerHTML = `
+        <td>${u.fullName || ""}</td>
+        <td>${u.email || ""}</td>
+        <td>${u.gender || ""}</td>
+        <td>${u.createdAt?.toDate ? u.createdAt.toDate().toLocaleString() : ""}</td>
       `;
+      tr.addEventListener("click", () => {
+        // Open chat page
+        localStorage.setItem("chatWithUid", doc.id);
+        localStorage.setItem("chatWithName", u.fullName || u.email);
+        window.location.href = "chat.html";
+      });
+      userRows.appendChild(tr);
     });
 
     loadingText.style.display = "none";
@@ -96,13 +112,6 @@ onAuthStateChanged(auth, async (user) => {
     console.error(err);
   }
 });
-
-// 🔹 Log out
-logoutBtn.addEventListener("click", async () => {
-  await signOut(auth);
-  window.location.href = "index.html";
-});
 </script>
-
 </body>
 </html>
