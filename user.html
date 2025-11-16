@@ -1,20 +1,24 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>User List</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f4f6ff; }
-    h2 { color: #333; }
-    table { width: 100%; border-collapse: collapse; background: white; }
-    th, td { padding: 12px; border-bottom: 1px solid #ccc; }
-    th { background: #6e8ef5; color: white; text-align: left; }
-    #errorBox { color: red; font-weight: bold; margin-top: 20px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registered Users</title>
+<style>
+body { font-family: Arial, sans-serif; padding: 20px; background: #f4f6ff; }
+h2 { color: #333; }
+table { width: 100%; border-collapse: collapse; background: white; }
+th, td { padding: 12px; border-bottom: 1px solid #ccc; }
+th { background: #6e8ef5; color: white; text-align: left; }
+#errorBox { color: red; font-weight: bold; margin-top: 20px; }
+button { padding: 10px 20px; margin-bottom: 20px; border: none; border-radius: 8px; background: #6e8ef5; color: white; cursor: pointer; }
+button:hover { background: #8ea2ff; }
+</style>
 </head>
 <body>
 
 <h2>Registered Users</h2>
+<button id="logoutBtn">Log Out</button>
 <p id="loading">Loading users...</p>
 <p id="errorBox"></p>
 
@@ -31,56 +35,73 @@
 </table>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
-    authDomain: "swipe-f90ed.firebaseapp.com",
-    projectId: "swipe-f90ed",
-    storageBucket: "swipe-f90ed.firebasestorage.app",
-    messagingSenderId: "360540214416",
-    appId: "1:360540214416:web:3e92fe77e5c93283d47415",
-    measurementId: "G-4SV32V4N0N"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
+  authDomain: "swipe-f90ed.firebaseapp.com",
+  projectId: "swipe-f90ed",
+  storageBucket: "swipe-f90ed.firebasestorage.app",
+  messagingSenderId: "360540214416",
+  appId: "1:360540214416:web:3e92fe77e5c93283d47415",
+  measurementId: "G-4SV32V4N0N"
+};
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
 
-  async function loadUsers() {
-    try {
-      const usersSnapshot = await getDocs(collection(db, "users"));
+const loadingText = document.getElementById("loading");
+const errorBox = document.getElementById("errorBox");
+const userTable = document.getElementById("userTable");
+const userRows = document.getElementById("userRows");
+const logoutBtn = document.getElementById("logoutBtn");
 
-      const rows = document.getElementById("userRows");
-
-      if (usersSnapshot.empty) {
-        document.getElementById("loading").innerText = "No users found in Firestore.";
-        return;
-      }
-
-      usersSnapshot.forEach(doc => {
-        const u = doc.data();
-
-        rows.innerHTML += `
-          <tr>
-            <td>${u.fullName || ""}</td>
-            <td>${u.email || ""}</td>
-            <td>${u.gender || ""}</td>
-            <td>${u.createdAt?.toDate ? u.createdAt.toDate().toLocaleString() : ""}</td>
-          </tr>
-        `;
-      });
-
-      document.getElementById("loading").style.display = "none";
-      document.getElementById("userTable").style.display = "table";
-
-    } catch (err) {
-      document.getElementById("loading").style.display = "none";
-      document.getElementById("errorBox").innerText = "ERROR: " + err.message;
-    }
+// 🔹 Force login
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    window.location.href = "index.html"; // redirect to login if not signed in
+    return;
   }
 
-  loadUsers();
+  // Load all users
+  try {
+    const usersSnapshot = await getDocs(collection(db, "users"));
+
+    if (usersSnapshot.empty) {
+      loadingText.innerText = "No users found.";
+      return;
+    }
+
+    usersSnapshot.forEach(doc => {
+      const u = doc.data();
+      userRows.innerHTML += `
+        <tr>
+          <td>${u.fullName || ""}</td>
+          <td>${u.email || ""}</td>
+          <td>${u.gender || ""}</td>
+          <td>${u.createdAt?.toDate ? u.createdAt.toDate().toLocaleString() : ""}</td>
+        </tr>
+      `;
+    });
+
+    loadingText.style.display = "none";
+    userTable.style.display = "table";
+
+  } catch (err) {
+    loadingText.style.display = "none";
+    errorBox.innerText = "ERROR: " + err.message;
+    console.error(err);
+  }
+});
+
+// 🔹 Log out
+logoutBtn.addEventListener("click", async () => {
+  await signOut(auth);
+  window.location.href = "index.html";
+});
 </script>
 
 </body>
