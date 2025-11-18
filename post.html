@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Create Post</title>
+<style>
+  body{font-family:sans-serif;background:#f4f6ff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+  .card{background:#fff;padding:20px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.08);width:380px}
+  textarea{width:100%;height:100px;padding:10px;border-radius:8px;border:1px solid #ddd;resize:vertical}
+  input[type=file]{margin-top:8px}
+  .img-preview{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .img-preview img{height:80px;border-radius:8px;object-fit:cover}
+  .btn{padding:10px 14px;border:none;border-radius:8px;background:#6e8ef5;color:#fff;cursor:pointer}
+  .small{font-size:13px;color:#666;margin-top:8px}
+  .progress{height:8px;background:#eee;border-radius:8px;margin-top:8px;overflow:hidden}
+  .progress > i{display:block;height:100%;background:#6e8ef5;width:0%}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h3>Create a Post</h3>
+    <textarea id="postText" placeholder="What's on your mind?"></textarea>
+    <div class="small">Attach images (you can select multiple)</div>
+    <input type="file" id="images" accept="image/*" multiple />
+    <div class="img-preview" id="preview"></div>
+    <div class="progress" id="progress" style="display:none"><i id="progressbar"></i></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn" id="postBtn">Post</button>
+      <button class="btn" style="background:#ddd;color:#222" id="cancelBtn">Cancel</button>
+    </div>
+  </div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import {
+  getFirestore, collection, addDoc, serverTimestamp, updateDoc, doc
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import {
+  getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
+  authDomain: "swipe-f90ed.firebaseapp.com",
+  projectId: "swipe-f90ed",
+  storageBucket: "swipe-f90ed.firebasestorage.app",
+  messagingSenderId: "360540214416",
+  appId: "1:360540214416:web:3e92fe77e5c93283d47415",
+  measurementId: "G-4SV32V4N0N"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+let currentUser = null;
+onAuthStateChanged(auth, u => { currentUser = u; if (!u) { alert('Please log in'); location.href='index.html'; } });
+
+const postBtn = document.getElementById('postBtn');
+const cancelBtn = document.getElementById('cancelBtn');
+const imagesInput = document.getElementById('images');
+const preview = document.getElementById('preview');
+const progressEl = document.getElementById('progress');
+const progressBar = document.getElementById('progressbar');
+
+let selectedFiles = [];
+
+// preview input
+imagesInput.addEventListener('change', (e) => {
+  selectedFiles = Array.from(e.target.files).slice(0, 6); // limit to 6 images for performance
+  preview.innerHTML = '';
+  selectedFiles.forEach(file => {
+    const url = URL.createObjectURL(file);
+    const img = document.createElement('img');
+    img.src = url;
+    preview.appendChild(img);
+  });
+});
+
+// cancel
+cancelBtn.addEventListener('click', () => location.href='homepage.html');
+
+// post flow: create post doc first (without imageUrls), then upload images, then update post with imageUrls
+postBtn.addEventListener('click', async () => {
+  const text = document.getElementById('postText').value.trim();
+  if (!text && !selectedFiles.length) return alert('Write something or attach images');
+
+  // create post doc
+  const pDoc = await addDoc(collection(db, 'posts'), {
+    uid: currentUser.uid,
+    name: currentUser.displayName || currentUser.email || 'Unknown',
+    text,
+    createdAt: new Date(),
+    imageUrls: []
+  });
+
+  const postId = pDoc.id;
+  if (selectedFiles.length === 0) {
+    // no images — just go back
+    location.href = 'homepage.html';
+    return;
+  }
+
+  // upload images
+  progressEl.style.display = 'block';
+  const urls = [];
+  for (let i = 0; i < selectedFiles.length; i++) {
+    const file = selectedFiles[i];
+    const fname = `${Date.now()}_${i}_${file.name}`;
+    const sRef = storageRef(storage, `posts/${postId}/${fname}`);
+    const uploadTask = uploadBytesResumable(sRef, file);
+    // await upload progress
+    await new Promise((res, rej) => {
+      uploadTask.on('state_changed', snapshot => {
+        const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+        progressBar.style.width = pct + '%';
+      }, err => rej(err), async () => {
+        const dl = await getDownloadURL(uploadTask.snapshot.ref);
+        urls.push(dl);
+        res();
+      });
+    });
+  }
+
+  // update post doc with image urls
+  await updateDoc(doc(db, 'posts', postId), { imageUrls: urls });
+  location.href = 'homepage.html';
+});
+</script>
+</body>
+  </html>
