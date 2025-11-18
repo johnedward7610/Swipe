@@ -1,31 +1,49 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Profile</title>
 <style>
-body { font-family: sans-serif; background: #f4f6ff; display:flex; justify-content:center; align-items:center; min-height:100vh; }
-.profile-card { background:white; padding:40px; border-radius:16px; box-shadow:0 6px 20px rgba(0,0,0,0.1); text-align:center; width:300px; }
-button { padding:10px 20px; border:none; border-radius:8px; background:#6e8ef5; color:white; cursor:pointer; margin-top:20px; }
-button:hover { background:#8ea2ff; }
+  body{font-family:sans-serif;background:#f4f6ff;padding:20px}
+  .card{background:#fff;padding:18px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.06);max-width:760px;margin:12px auto}
+  .meta{display:flex;align-items:center;gap:12px}
+  .avatar{width:72px;height:72px;border-radius:999px;background:linear-gradient(135deg,#cfe1ff,#e7dfff);display:flex;align-items:center;justify-content:center;font-weight:800}
+  .follow-btn{padding:8px 12px;border-radius:10px;border:none;background:var(--primary);color:#fff;cursor:pointer}
+  .small{color:#666;font-size:13px}
+  .posts-list{margin-top:14px}
+  .post-card{background:#fff;padding:12px;border-radius:10px;margin-bottom:12px;box-shadow:0 6px 18px rgba(0,0,0,.04)}
 </style>
 </head>
 <body>
-<a href="user.html">users?</a>
-<div class="profile-card">
-  <h1 id="profileName">Loading...</h1>
-  <p id="profileEmail"></p>
-  <p id="profileGender"></p>
-  <button id="logoutBtn">Log Out</button>
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <div class="meta">
+      <div class="avatar" id="avatar">U</div>
+      <div>
+        <div id="name" style="font-weight:800;font-size:20px">Loading...</div>
+        <div id="email" class="small"></div>
+        <div style="margin-top:8px"><span id="followersCount">0</span> followers · <span id="followingCount">0</span> following</div>
+      </div>
+    </div>
+    <div>
+      <button id="followBtn" class="follow-btn">Follow</button>
+    </div>
+  </div>
+
+  <div style="margin-top:14px">
+    <h3>Posts</h3>
+    <div id="userPosts" class="posts-list">Loading posts…</div>
+  </div>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, collection, query, where, orderBy, getDocs, setDoc, deleteDoc
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
-// ✅ Replace with your Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
   authDomain: "swipe-f90ed.firebaseapp.com",
@@ -36,53 +54,82 @@ const firebaseConfig = {
   measurementId: "G-4SV32V4N0N"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-const profileName = document.getElementById("profileName");
-const profileEmail = document.getElementById("profileEmail");
-const profileGender = document.getElementById("profileGender");
-const logoutBtn = document.getElementById("logoutBtn");
+const urlParams = new URLSearchParams(window.location.search);
+const profileUid = urlParams.get('uid'); // if undefined -> my profile
 
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    // Not logged in → redirect to login page
-    window.location.href = "index.html";
-    return;
-  }
-
-  try {
-    const docRef = doc(db, "users", user.uid);
-    const docSnap = await getDoc(docRef);
-
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      profileName.textContent = data.fullName || user.email;
-      profileEmail.textContent = data.email || user.email;
-      profileGender.textContent = data.gender || "Not provided";
-    } else {
-      // Document doesn't exist → fallback to Auth info
-      profileName.textContent = user.displayName || user.email;
-      profileEmail.textContent = user.email;
-      profileGender.textContent = "Not provided";
-    }
-
-  } catch (err) {
-    console.error("Error fetching profile:", err);
-    profileName.textContent = "Error loading profile";
-    profileEmail.textContent = "";
-    profileGender.textContent = "";
-  }
+let currentUser = null;
+onAuthStateChanged(auth, u => {
+  currentUser = u;
+  loadProfile();
 });
 
-// Logout
-logoutBtn.addEventListener("click", async () => {
-  await signOut(auth);
-  window.location.href = "index.html";
-});
+const nameEl = document.getElementById('name');
+const emailEl = document.getElementById('email');
+const avatarEl = document.getElementById('avatar');
+const followersCountEl = document.getElementById('followersCount');
+const followingCountEl = document.getElementById('followingCount');
+const followBtn = document.getElementById('followBtn');
+const userPosts = document.getElementById('userPosts');
+
+async function loadProfile() {
+  const uid = profileUid || (currentUser && currentUser.uid);
+  if (!uid) { alert('No user specified'); location.href='index.html'; return; }
+
+  // load basic profile from users collection (if you store profile fields there)
+  const userDoc = await getDoc(doc(db, 'users', uid));
+  const profile = userDoc.exists() ? userDoc.data() : null;
+
+  nameEl.textContent = profile?.fullName || (profile?.displayName) || (currentUser?.uid === uid ? (currentUser?.displayName || currentUser?.email) : 'Unknown User');
+  emailEl.textContent = profile?.email || '';
+  avatarEl.textContent = (nameEl.textContent || 'U').charAt(0).toUpperCase();
+
+  // followers & following counts (subcollections)
+  const followersSnap = await getDocs(collection(db, 'users', uid, 'followers'));
+  const followingSnap = await getDocs(collection(db, 'users', uid, 'following'));
+  followersCountEl.textContent = followersSnap.size;
+  followingCountEl.textContent = followingSnap.size;
+
+  // follow button state (only show if viewing another user)
+  if (currentUser && currentUser.uid !== uid) {
+    followBtn.style.display = 'inline-block';
+    const isFollowing = (await getDoc(doc(db, 'users', uid, 'followers', currentUser.uid))).exists();
+    followBtn.textContent = isFollowing ? 'Following' : 'Follow';
+    followBtn.onclick = async () => {
+      const followerRef = doc(db, 'users', uid, 'followers', currentUser.uid);
+      const followingRef = doc(db, 'users', currentUser.uid, 'following', uid);
+      const snap = await getDoc(followerRef);
+      if (snap.exists()) {
+        await deleteDoc(followerRef);
+        await deleteDoc(followingRef);
+        followBtn.textContent = 'Follow';
+        followersCountEl.textContent = parseInt(followersCountEl.textContent) - 1;
+      } else {
+        await setDoc(followerRef, { followedAt: new Date() });
+        await setDoc(followingRef, { followedAt: new Date() });
+        followBtn.textContent = 'Following';
+        followersCountEl.textContent = parseInt(followersCountEl.textContent) + 1;
+      }
+    };
+  } else {
+    followBtn.style.display = 'none';
+  }
+
+  // load user's posts
+  const q = query(collection(db, 'posts'), where('uid','==', uid), orderBy('createdAt','desc'));
+  const snap = await getDocs(q);
+  userPosts.innerHTML = '';
+  snap.forEach(d => {
+    const p = d.data();
+    const div = document.createElement('div');
+    div.className = 'post-card';
+    div.innerHTML = `<div style="font-weight:700">${p.name}</div><div style="font-size:12px;color:#666">${new Date(p.createdAt?.seconds ? p.createdAt.seconds*1000 : Date.parse(p.createdAt)).toLocaleString()}</div><div style="margin-top:8px">${p.text || ''}</div>`;
+    userPosts.appendChild(div);
+  });
+}
 </script>
-
 </body>
 </html>
