@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Homepage</title>
+<style>
+  :root{--primary:#6e8ef5;--accent:#ff6e6e}
+  body{font-family:sans-serif;background:#f4f6ff;margin:0;padding:20px;}
+  .hotbar{display:flex;gap:10px;margin-bottom:14px}
+  .hotbar button{padding:10px 16px;border:none;border-radius:10px;background:var(--primary);color:#fff;cursor:pointer}
+  #feed{max-width:800px;margin:0 auto}
+  .post-card{background:#fff;padding:16px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:16px}
+  .post-header{display:flex;align-items:center;gap:12px}
+  .avatar{width:48px;height:48px;border-radius:999px;background:linear-gradient(135deg,#cfe1ff,#e7dfff);display:flex;align-items:center;justify-content:center;font-weight:700}
+  .post-name{font-weight:700;cursor:pointer}
+  .post-time{color:#777;font-size:12px}
+  .post-text{margin:12px 0;white-space:pre-wrap}
+  .post-images{display:flex;gap:8px;overflow:hidden}
+  .post-images img{max-height:220px;border-radius:10px;object-fit:cover}
+  .actions{margin-top:10px;display:flex;gap:8px;align-items:center}
+  .btn{padding:8px 12px;border:none;border-radius:8px;cursor:pointer}
+  .like-btn{background:var(--accent);color:#fff}
+  .comment-btn{background:var(--primary);color:#fff}
+  .delete-btn{background:#222;color:#fff}
+  .likes-count{font-weight:700;margin-left:6px}
+  .comments-area{margin-top:10px;border-top:1px solid #eee;padding-top:10px}
+  .comment-card{background:#f6f7ff;padding:8px;border-radius:8px;margin-bottom:8px}
+  .floating-post{position:fixed;right:22px;bottom:22px;width:58px;height:58px;border-radius:999px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-size:32px;box-shadow:0 8px 24px rgba(0,0,0,.15);cursor:pointer}
+  .load-more{padding:12px;text-align:center;color:#555}
+  .follow-btn{padding:6px 10px;border-radius:8px;border:none;background:#fff;color:var(--primary);cursor:pointer}
+</style>
+</head>
+<body>
+
+<div class="hotbar">
+  <button onclick="location.href='profile.html'">My Profile</button>
+  <button onclick="location.href='users.html'">Users</button>
+  <button onclick="location.href='post.html'">Create Post</button>
+</div>
+
+<div id="feed">
+  <h2>Posts</h2>
+  <div id="postsContainer"></div>
+  <div id="loadMore" class="load-more">Scroll to load more…</div>
+</div>
+
+<div class="floating-post" id="floatingPost" title="Create post">+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import {
+  getFirestore, collection, query, orderBy, limit, startAfter,
+  getDocs, doc, onSnapshot, deleteDoc, setDoc, getDoc, addDoc
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
+  authDomain: "swipe-f90ed.firebaseapp.com",
+  projectId: "swipe-f90ed",
+  storageBucket: "swipe-f90ed.firebasestorage.app",
+  messagingSenderId: "360540214416",
+  appId: "1:360540214416:web:3e92fe77e5c93283d47415",
+  measurementId: "G-4SV32V4N0N"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const postsContainer = document.getElementById('postsContainer');
+const loadMoreEl = document.getElementById('loadMore');
+const floatingPost = document.getElementById('floatingPost');
+
+let currentUser = null;
+onAuthStateChanged(auth, user => currentUser = user);
+
+// Floating + leads to post page
+floatingPost.addEventListener('click', () => location.href = 'post.html');
+
+// Infinite scroll variables
+const PAGE_SIZE = 6;
+let lastVisible = null;
+let loading = false;
+let finished = false;
+
+// Keep a map of postId -> unsubscribe function for live listeners (comments/likes)
+const liveUnsubs = new Map();
+
+// Format timestamp safely
+function formatTime(ts) {
+  try { return ts?.toDate().toLocaleString() || 'Just now'; } catch(e) { return 'Just now'; }
+}
+
+// Render a single post card
+function renderPostCard(postId, data) {
+  const card = document.createElement('div');
+  card.className = 'post-card';
+  card.id = `post-${postId}`;
+
+  const avatarInitial = (data.name || 'U').charAt(0).toUpperCase();
+
+  card.innerHTML = `
+    <div class="post-header">
+      <div class="avatar">${avatarInitial}</div>
+      <div style="flex:1">
+        <div class="post-name" data-uid="${data.uid}" data-name="${data.name}">${data.name}</div>
+        <div class="post-time">${formatTime(data.createdAt)}</div>
+      </div>
+      <div>
+        ${currentUser?.uid !== data.uid ? `<button class="follow-btn" id="follow-${postId}">Follow</button>` : ''}
+      </div>
+    </div>
+    <div class="post-text">${escapeHtml(data.text || '')}</div>
+    <div class="post-images" id="images-${postId}"></div>
+    <div class="actions">
+      <button class="btn like-btn" id="like-${postId}">❤️ Like</button>
+      <span class="likes-count" id="likes-count-${postId}">0</span>
+      <button class="btn comment-btn" id="comment-toggle-${postId}">💬 Comment</button>
+      ${currentUser && currentUser.uid === data.uid ? `<button class="btn delete-btn" id="delete-${postId}">🗑 Delete</button>` : ''}
+    </div>
+    <div class="comments-area" id="comments-area-${postId}" style="display:none"></div>
+  `;
+
+  // Click name opens profile
+  card.querySelector('.post-name').addEventListener('click', (ev) => {
+    const uid = ev.currentTarget.dataset.uid;
+    location.href = `profile.html?uid=${uid}`;
+  });
+
+  postsContainer.appendChild(card);
+
+  // render images (carousel-ish — show up to 3 thumbnails; click to open lightbox)
+  const imagesContainer = document.getElementById(`images-${postId}`);
+  if (Array.isArray(data.imageUrls) && data.imageUrls.length) {
+    data.imageUrls.forEach(url => {
+      const img = document.createElement('img');
+      img.src = url;
+      img.style.maxWidth = data.imageUrls.length === 1 ? '100%' : '48%';
+      img.addEventListener('click', () => window.open(url, '_blank'));
+      imagesContainer.appendChild(img);
+    });
+  }
+
+  // Like button
+  const likeBtn = card.querySelector(`#like-${postId}`);
+  likeBtn.onclick = async () => {
+    if (!currentUser) { alert('Please login to like'); return; }
+    const likeRef = doc(db, 'posts', postId, 'likes', currentUser.uid);
+    await setDoc(likeRef, { likedAt: new Date() });
+  };
+
+  // Delete
+  const deleteBtn = card.querySelector(`#delete-${postId}`);
+  if (deleteBtn) {
+    deleteBtn.onclick = async () => {
+      if (!confirm('Delete this post?')) return;
+      // delete post doc (subcollections not auto-deleted — consider Cloud Function for full cleanup)
+      await deleteDoc(doc(db, 'posts', postId));
+      card.remove();
+    };
+  }
+
+  // Follow/unfollow button
+  const followBtn = card.querySelector(`#follow-${postId}`);
+  if (followBtn) {
+    followBtn.onclick = async () => {
+      if (!currentUser) { alert('Login first'); return; }
+      const targetUid = data.uid;
+      const followerRef = doc(db, 'users', targetUid, 'followers', currentUser.uid);
+      const followingRef = doc(db, 'users', currentUser.uid, 'following', targetUid);
+      // toggle follow: check if follower exists
+      const snap = await getDoc(followerRef);
+      if (snap.exists()) {
+        // unfollow
+        await followerRef.delete();
+        await followingRef.delete();
+        followBtn.textContent = 'Follow';
+      } else {
+        await setDoc(followerRef, { followedAt: new Date() });
+        await setDoc(followingRef, { followedAt: new Date() });
+        followBtn.textContent = 'Following';
+      }
+    };
+    // set initial label
+    (async () => {
+      if (!currentUser) return;
+      const already = await getDoc(doc(db, 'users', data.uid, 'followers', currentUser.uid));
+      followBtn.textContent = already.exists() ? 'Following' : 'Follow';
+    })();
+  }
+
+  // Toggle comments area
+  const commentToggle = card.querySelector(`#comment-toggle-${postId}`);
+  const commentsArea = card.querySelector(`#comments-area-${postId}`);
+  commentToggle.onclick = () => {
+    commentsArea.style.display = commentsArea.style.display === 'none' ? 'block' : 'none';
+  };
+
+  // live listeners for likes & comments counts
+  const likesRef = collection(db, 'posts', postId, 'likes');
+  const commentsRef = collection(db, 'posts', postId, 'comments');
+
+  // subscribe likes and comments using onSnapshot for live counts
+  const unsubscribeLikes = onSnapshot(likesRef, snap => {
+    const cnt = snap.size || 0;
+    const el = document.getElementById(`likes-count-${postId}`);
+    if (el) el.textContent = cnt;
+  });
+
+  const unsubscribeComments = onSnapshot(commentsRef, snap => {
+    // render comments list in commentsArea
+    commentsArea.innerHTML = `
+      <textarea id="comment-input-${postId}" style="width:100%;padding:8px;border-radius:8px;" placeholder="Write a comment..."></textarea>
+      <button class="btn comment-btn" id="comment-post-${postId}">Post</button>
+      <div id="comments-list-${postId}" style="margin-top:10px"></div>
+    `;
+    const list = document.getElementById(`comments-list-${postId}`);
+    snap.forEach(c => {
+      const d = c.data();
+      const div = document.createElement('div');
+      div.className = 'comment-card';
+      div.innerHTML = `<div style="font-weight:700">${d.name}</div><div style="font-size:12px;color:#666">${formatTime(d.createdAt)}</div><div>${escapeHtml(d.text)}</div>`;
+      list.appendChild(div);
+    });
+
+    // wire post comment button
+    const postBtn = document.getElementById(`comment-post-${postId}`);
+    postBtn.onclick = async () => {
+      if (!currentUser) { alert('Login first'); return; }
+      const input = document.getElementById(`comment-input-${postId}`);
+      const text = input.value.trim();
+      if (!text) return;
+      await addDoc(collection(db, 'posts', postId, 'comments'), {
+        uid: currentUser.uid,
+        name: currentUser.displayName || currentUser.email || 'Unknown',
+        text,
+        createdAt: new Date()
+      });
+      input.value = '';
+    };
+  });
+
+  // keep unsubscribes to clean up if needed on pagination removal
+  liveUnsubs.set(postId, () => {
+    unsubscribeLikes(); unsubscribeComments();
+  });
+}
+
+// escape text for HTML
+function escapeHtml(s) {
+  if (!s) return '';
+  return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+}
+
+// initial load (newest)
+async function loadInitial() {
+  if (loading || finished) return;
+  loading = true;
+  const q = query(collection(db, 'posts'), orderBy('createdAt','desc'), limit(PAGE_SIZE));
+  const snap = await getDocs(q);
+  if (snap.empty) {
+    loadMoreEl.textContent = 'No posts yet';
+    finished = true;
+    loading = false;
+    return;
+  }
+  lastVisible = snap.docs[snap.docs.length-1];
+  snap.docs.forEach(d => renderPostCard(d.id, d.data()));
+  // listen for new posts (top-of-feed) realtime: set up ordered query with limit(1) to show new posts at top
+  // We also rely on user creating posts redirecting to homepage so feed refreshes.
+  loading = false;
+}
+
+// load older posts (pagination)
+async function loadMore() {
+  if (loading || finished) return;
+  loading = true;
+  if (!lastVisible) { loading = false; return; }
+  const qMore = query(collection(db, 'posts'), orderBy('createdAt','desc'), startAfter(lastVisible), limit(PAGE_SIZE));
+  const snap = await getDocs(qMore);
+  if (snap.empty) {
+    loadMoreEl.textContent = 'No more posts';
+    finished = true;
+    loading = false;
+    return;
+  }
+  lastVisible = snap.docs[snap.docs.length-1];
+  snap.docs.forEach(d => renderPostCard(d.id, d.data()));
+  loading = false;
+}
+
+// infinite scroll observer
+window.addEventListener('scroll', () => {
+  const scrolledToBottom = (window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 120);
+  if (scrolledToBottom) loadMore();
+});
+
+// kick off initial load
+loadInitial();
+</script>
+</body>
+  </html>
