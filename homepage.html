@@ -69,236 +69,229 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-const postsContainer = document.getElementById('postsContainer');
-const loadMoreEl = document.getElementById('loadMore');
-const floatingPost = document.getElementById('floatingPost');
-
 let currentUser = null;
-onAuthStateChanged(auth, user => currentUser = user);
+onAuthStateChanged(auth, u => currentUser = u);
 
-// Floating + leads to post page
-floatingPost.addEventListener('click', () => location.href = 'post.html');
+const postsContainer = document.getElementById("postsContainer");
+const loadMoreEl = document.getElementById("loadMore");
 
-// Infinite scroll variables
 const PAGE_SIZE = 6;
 let lastVisible = null;
 let loading = false;
 let finished = false;
 
-// Keep a map of postId -> unsubscribe function for live listeners (comments/likes)
-const liveUnsubs = new Map();
+/* ------------------- Utilities ------------------- */
+const escapeHtml = s => s?.replace(/[&<>]/g, m => (
+  { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m]
+)) ?? "";
 
-// Format timestamp safely
-function formatTime(ts) {
-  try { return ts?.toDate().toLocaleString() || 'Just now'; } catch(e) { return 'Just now'; }
-}
+const formatTime = ts => {
+  try { return ts?.toDate().toLocaleString() || "Just now" }
+  catch { return "Just now" }
+};
 
-// Render a single post card
+/* ------------------- Render Post ------------------- */
 function renderPostCard(postId, data) {
-  const card = document.createElement('div');
-  card.className = 'post-card';
+  const frag = document.createDocumentFragment();
+
+  const card = document.createElement("div");
+  card.className = "post-card";
   card.id = `post-${postId}`;
 
-  const avatarInitial = (data.name || 'U').charAt(0).toUpperCase();
+  const avatarInitial = (data.name || "U")[0].toUpperCase();
 
   card.innerHTML = `
     <div class="post-header">
       <div class="avatar">${avatarInitial}</div>
       <div style="flex:1">
-        <div class="post-name" data-uid="${data.uid}" data-name="${data.name}">${data.name}</div>
+        <div class="post-name" data-uid="${data.uid}">${data.name}</div>
         <div class="post-time">${formatTime(data.createdAt)}</div>
       </div>
-      <div>
-        ${currentUser?.uid !== data.uid ? `<button class="follow-btn" id="follow-${postId}">Follow</button>` : ''}
-      </div>
+      ${currentUser?.uid !== data.uid ? `<button class="follow-btn" id="follow-${postId}">Follow</button>` : ""}
     </div>
-    <div class="post-text">${escapeHtml(data.text || '')}</div>
-    <div class="post-images" id="images-${postId}"></div>
+
+    <div class="post-text">${escapeHtml(data.text)}</div>
+    <div class="post-images" id="img-${postId}"></div>
+
     <div class="actions">
       <button class="btn like-btn" id="like-${postId}">❤️ Like</button>
-      <span class="likes-count" id="likes-count-${postId}">0</span>
-      <button class="btn comment-btn" id="comment-toggle-${postId}">💬 Comment</button>
-      ${currentUser && currentUser.uid === data.uid ? `<button class="btn delete-btn" id="delete-${postId}">🗑 Delete</button>` : ''}
+      <span class="likes-count" id="likes-${postId}">0</span>
+      <button class="btn comment-btn" id="toggle-${postId}">💬 Comment</button>
+      ${currentUser && currentUser.uid === data.uid ? `<button class="btn delete-btn" id="del-${postId}">🗑 Delete</button>` : ""}
     </div>
-    <div class="comments-area" id="comments-area-${postId}" style="display:none"></div>
+
+    <div class="comments-area" id="carea-${postId}" style="display:none">
+      <textarea id="cinput-${postId}" class="comment-input" placeholder="Write a comment…"></textarea>
+      <button class="btn comment-btn" id="cpost-${postId}">Post</button>
+      <div id="clist-${postId}" class="clist"></div>
+    </div>
   `;
 
-  // Click name opens profile
-  card.querySelector('.post-name').addEventListener('click', (ev) => {
-    const uid = ev.currentTarget.dataset.uid;
-    location.href = `profile.html?uid=${uid}`;
-  });
-
-  postsContainer.appendChild(card);
-
-  // render images (carousel-ish — show up to 3 thumbnails; click to open lightbox)
-  const imagesContainer = document.getElementById(`images-${postId}`);
-  if (Array.isArray(data.imageUrls) && data.imageUrls.length) {
+  /* Images */
+  if (data.imageUrls?.length) {
+    const imgBox = card.querySelector(`#img-${postId}`);
     data.imageUrls.forEach(url => {
-      const img = document.createElement('img');
+      const img = document.createElement("img");
       img.src = url;
-      img.style.maxWidth = data.imageUrls.length === 1 ? '100%' : '48%';
-      img.addEventListener('click', () => window.open(url, '_blank'));
-      imagesContainer.appendChild(img);
+      img.style.maxWidth = data.imageUrls.length === 1 ? "100%" : "48%";
+      img.loading = "lazy"; // ⭐ faster load
+      img.onclick = () => window.open(url, "_blank");
+      imgBox.appendChild(img);
     });
   }
 
-  // Like button
-  const likeBtn = card.querySelector(`#like-${postId}`);
-  likeBtn.onclick = async () => {
-    if (!currentUser) { alert('Please login to like'); return; }
-    const likeRef = doc(db, 'posts', postId, 'likes', currentUser.uid);
-    await setDoc(likeRef, { likedAt: new Date() });
+  /* Profile click */
+  card.querySelector(".post-name").onclick = e => {
+    const uid = e.target.dataset.uid;
+    location.href = `profile.html?uid=${uid}`;
   };
 
-  // Delete
-  const deleteBtn = card.querySelector(`#delete-${postId}`);
-  if (deleteBtn) {
-    deleteBtn.onclick = async () => {
-      if (!confirm('Delete this post?')) return;
-      // delete post doc (subcollections not auto-deleted — consider Cloud Function for full cleanup)
-      await deleteDoc(doc(db, 'posts', postId));
+  /* Like system */
+  card.querySelector(`#like-${postId}`).onclick = async () => {
+    if (!currentUser) return alert("Login first");
+    await setDoc(doc(db, "posts", postId, "likes", currentUser.uid), {
+      likedAt: new Date()
+    });
+  };
+
+  /* Delete */
+  const del = card.querySelector(`#del-${postId}`);
+  if (del) {
+    del.onclick = async () => {
+      if (!confirm("Delete this post?")) return;
+      await deleteDoc(doc(db, "posts", postId));
       card.remove();
     };
   }
 
-  // Follow/unfollow button
-  const followBtn = card.querySelector(`#follow-${postId}`);
-  if (followBtn) {
-    followBtn.onclick = async () => {
-      if (!currentUser) { alert('Login first'); return; }
-      const targetUid = data.uid;
-      const followerRef = doc(db, 'users', targetUid, 'followers', currentUser.uid);
-      const followingRef = doc(db, 'users', currentUser.uid, 'following', targetUid);
-      // toggle follow: check if follower exists
-      const snap = await getDoc(followerRef);
+  /* Follow */
+  const fbtn = card.querySelector(`#follow-${postId}`);
+  if (fbtn) {
+    fbtn.onclick = async () => {
+      if (!currentUser) return alert("Login");
+
+      const follower = doc(db, "users", data.uid, "followers", currentUser.uid);
+      const following = doc(db, "users", currentUser.uid, "following", data.uid);
+
+      const snap = await getDoc(follower);
       if (snap.exists()) {
-        // unfollow
-        await followerRef.delete();
-        await followingRef.delete();
-        followBtn.textContent = 'Follow';
+        await deleteDoc(follower);
+        await deleteDoc(following);
+        fbtn.textContent = "Follow";
       } else {
-        await setDoc(followerRef, { followedAt: new Date() });
-        await setDoc(followingRef, { followedAt: new Date() });
-        followBtn.textContent = 'Following';
+        await setDoc(follower, { followedAt: new Date() });
+        await setDoc(following, { followedAt: new Date() });
+        fbtn.textContent = "Following";
       }
     };
-    // set initial label
-    (async () => {
-      if (!currentUser) return;
-      const already = await getDoc(doc(db, 'users', data.uid, 'followers', currentUser.uid));
-      followBtn.textContent = already.exists() ? 'Following' : 'Follow';
-    })();
+
+    // set initial state (NO repeated DB reads)
+    getDoc(doc(db, "users", data.uid, "followers", currentUser?.uid))
+      .then(s => fbtn.textContent = s.exists() ? "Following" : "Follow");
   }
 
-  // Toggle comments area
-  const commentToggle = card.querySelector(`#comment-toggle-${postId}`);
-  const commentsArea = card.querySelector(`#comments-area-${postId}`);
-  commentToggle.onclick = () => {
-    commentsArea.style.display = commentsArea.style.display === 'none' ? 'block' : 'none';
+  /* Toggle comments */
+  const carea = card.querySelector(`#carea-${postId}`);
+  card.querySelector(`#toggle-${postId}`).onclick = () => {
+    carea.style.display = carea.style.display === "none" ? "block" : "none";
   };
 
-  // live listeners for likes & comments counts
-  const likesRef = collection(db, 'posts', postId, 'likes');
-  const commentsRef = collection(db, 'posts', postId, 'comments');
-
-  // subscribe likes and comments using onSnapshot for live counts
-  const unsubscribeLikes = onSnapshot(likesRef, snap => {
-    const cnt = snap.size || 0;
-    const el = document.getElementById(`likes-count-${postId}`);
-    if (el) el.textContent = cnt;
+  /* Live likes */
+  onSnapshot(collection(db, "posts", postId, "likes"), snap => {
+    card.querySelector(`#likes-${postId}`).textContent = snap.size;
   });
 
-  const unsubscribeComments = onSnapshot(commentsRef, snap => {
-    // render comments list in commentsArea
-    commentsArea.innerHTML = `
-      <textarea id="comment-input-${postId}" style="width:100%;padding:8px;border-radius:8px;" placeholder="Write a comment..."></textarea>
-      <button class="btn comment-btn" id="comment-post-${postId}">Post</button>
-      <div id="comments-list-${postId}" style="margin-top:10px"></div>
-    `;
-    const list = document.getElementById(`comments-list-${postId}`);
+  /* Live comments — optimized (does NOT re-render the input box every time) */
+  const list = card.querySelector(`#clist-${postId}`);
+  onSnapshot(collection(db, "posts", postId, "comments"), snap => {
+    list.innerHTML = "";
+    const f = document.createDocumentFragment();
     snap.forEach(c => {
       const d = c.data();
-      const div = document.createElement('div');
-      div.className = 'comment-card';
-      div.innerHTML = `<div style="font-weight:700">${d.name}</div><div style="font-size:12px;color:#666">${formatTime(d.createdAt)}</div><div>${escapeHtml(d.text)}</div>`;
-      list.appendChild(div);
+      const div = document.createElement("div");
+      div.className = "comment-card";
+      div.innerHTML = `
+        <div style="font-weight:700">${d.name}</div>
+        <div style="font-size:12px;color:#666">${formatTime(d.createdAt)}</div>
+        <div>${escapeHtml(d.text)}</div>
+      `;
+      f.appendChild(div);
     });
-
-    // wire post comment button
-    const postBtn = document.getElementById(`comment-post-${postId}`);
-    postBtn.onclick = async () => {
-      if (!currentUser) { alert('Login first'); return; }
-      const input = document.getElementById(`comment-input-${postId}`);
-      const text = input.value.trim();
-      if (!text) return;
-      await addDoc(collection(db, 'posts', postId, 'comments'), {
-        uid: currentUser.uid,
-        name: currentUser.displayName || currentUser.email || 'Unknown',
-        text,
-        createdAt: new Date()
-      });
-      input.value = '';
-    };
+    list.appendChild(f);
   });
 
-  // keep unsubscribes to clean up if needed on pagination removal
-  liveUnsubs.set(postId, () => {
-    unsubscribeLikes(); unsubscribeComments();
-  });
+  /* Post comment */
+  card.querySelector(`#cpost-${postId}`).onclick = async () => {
+    if (!currentUser) return alert("Login first");
+    const box = card.querySelector(`#cinput-${postId}`);
+    const txt = box.value.trim();
+    if (!txt) return;
+
+    await addDoc(collection(db, "posts", postId, "comments"), {
+      uid: currentUser.uid,
+      name: currentUser.displayName || currentUser.email,
+      text: txt,
+      createdAt: new Date()
+    });
+    box.value = "";
+  };
+
+  frag.appendChild(card);
+  postsContainer.appendChild(frag);
 }
 
-// escape text for HTML
-function escapeHtml(s) {
-  if (!s) return '';
-  return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
-}
-
-// initial load (newest)
+/* ------------------- Pagination ------------------- */
 async function loadInitial() {
   if (loading || finished) return;
   loading = true;
-  const q = query(collection(db, 'posts'), orderBy('createdAt','desc'), limit(PAGE_SIZE));
+
+  const q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(PAGE_SIZE));
+  const snap = await getDocs(q);
+
+  if (snap.empty) {
+    finished = true;
+    loadMoreEl.textContent = "No posts yet";
+    return;
+  }
+
+  lastVisible = snap.docs[snap.docs.length - 1];
+  snap.docs.forEach(docSnap => renderPostCard(docSnap.id, docSnap.data()));
+
+  loading = false;
+}
+
+async function loadMore() {
+  if (loading || finished || !lastVisible) return;
+  loading = true;
+
+  const q = query(
+    collection(db, "posts"),
+    orderBy("createdAt", "desc"),
+    startAfter(lastVisible),
+    limit(PAGE_SIZE)
+  );
+
   const snap = await getDocs(q);
   if (snap.empty) {
-    loadMoreEl.textContent = 'No posts yet';
     finished = true;
-    loading = false;
+    loadMoreEl.textContent = "No more posts";
     return;
   }
-  lastVisible = snap.docs[snap.docs.length-1];
+
+  lastVisible = snap.docs[snap.docs.length - 1];
   snap.docs.forEach(d => renderPostCard(d.id, d.data()));
-  // listen for new posts (top-of-feed) realtime: set up ordered query with limit(1) to show new posts at top
-  // We also rely on user creating posts redirecting to homepage so feed refreshes.
+
   loading = false;
 }
 
-// load older posts (pagination)
-async function loadMore() {
-  if (loading || finished) return;
-  loading = true;
-  if (!lastVisible) { loading = false; return; }
-  const qMore = query(collection(db, 'posts'), orderBy('createdAt','desc'), startAfter(lastVisible), limit(PAGE_SIZE));
-  const snap = await getDocs(qMore);
-  if (snap.empty) {
-    loadMoreEl.textContent = 'No more posts';
-    finished = true;
-    loading = false;
-    return;
+/* Infinite scroll */
+window.addEventListener("scroll", () => {
+  if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 140) {
+    loadMore();
   }
-  lastVisible = snap.docs[snap.docs.length-1];
-  snap.docs.forEach(d => renderPostCard(d.id, d.data()));
-  loading = false;
-}
-
-// infinite scroll observer
-window.addEventListener('scroll', () => {
-  const scrolledToBottom = (window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 120);
-  if (scrolledToBottom) loadMore();
 });
 
-// kick off initial load
 loadInitial();
 </script>
 </body>
-  </html>
+</html>
