@@ -21,7 +21,7 @@
   <div class="card">
     <h3>Create a Post</h3>
     <textarea id="postText" placeholder="What's on your mind?"></textarea>
-    <div class="small">Attach images (you can select multiple)</div>
+    <div class="small">Attach images (max 6, uploads happen FAST parallel)</div>
     <input type="file" id="images" accept="image/*" multiple />
     <div class="img-preview" id="preview"></div>
     <div class="progress" id="progress" style="display:none"><i id="progressbar"></i></div>
@@ -35,7 +35,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
-  getFirestore, collection, addDoc, serverTimestamp, updateDoc, doc
+  getFirestore, collection, doc, setDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
   getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL
@@ -57,7 +57,7 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 
 let currentUser = null;
-onAuthStateChanged(auth, u => { currentUser = u; if (!u) { alert('Please log in'); location.href='index.html'; } });
+onAuthStateChanged(auth, u => { currentUser = u; if (!u) location.href='index.html'; });
 
 const postBtn = document.getElementById('postBtn');
 const cancelBtn = document.getElementById('cancelBtn');
@@ -68,12 +68,12 @@ const progressBar = document.getElementById('progressbar');
 
 let selectedFiles = [];
 
-// preview input
-imagesInput.addEventListener('change', (e) => {
-  selectedFiles = Array.from(e.target.files).slice(0, 6); // limit to 6 images for performance
+// preview
+imagesInput.addEventListener('change', e => {
+  selectedFiles = Array.from(e.target.files).slice(0, 6);
   preview.innerHTML = '';
-  selectedFiles.forEach(file => {
-    const url = URL.createObjectURL(file);
+  selectedFiles.forEach(f => {
+    const url = URL.createObjectURL(f);
     const img = document.createElement('img');
     img.src = url;
     preview.appendChild(img);
@@ -83,52 +83,61 @@ imagesInput.addEventListener('change', (e) => {
 // cancel
 cancelBtn.addEventListener('click', () => location.href='homepage.html');
 
-// post flow: create post doc first (without imageUrls), then upload images, then update post with imageUrls
+// FAST POST
 postBtn.addEventListener('click', async () => {
   const text = document.getElementById('postText').value.trim();
-  if (!text && !selectedFiles.length) return alert('Write something or attach images');
+  if (!text && selectedFiles.length === 0) return alert('Write something or attach images');
 
-  // create post doc
-  const pDoc = await addDoc(collection(db, 'posts'), {
+  // Create post doc (fast: no images yet)
+  const postRef = doc(collection(db, "posts"));
+  const postId = postRef.id;
+
+  await setDoc(postRef, {
     uid: currentUser.uid,
     name: currentUser.displayName || currentUser.email || 'Unknown',
     text,
-    createdAt: new Date(),
+    createdAt: serverTimestamp(),
     imageUrls: []
   });
 
-  const postId = pDoc.id;
+  // No images
   if (selectedFiles.length === 0) {
-    // no images — just go back
     location.href = 'homepage.html';
     return;
   }
 
-  // upload images
+  // Parallel uploads
   progressEl.style.display = 'block';
-  const urls = [];
-  for (let i = 0; i < selectedFiles.length; i++) {
-    const file = selectedFiles[i];
-    const fname = `${Date.now()}_${i}_${file.name}`;
-    const sRef = storageRef(storage, `posts/${postId}/${fname}`);
-    const uploadTask = uploadBytesResumable(sRef, file);
-    // await upload progress
-    await new Promise((res, rej) => {
-      uploadTask.on('state_changed', snapshot => {
-        const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-        progressBar.style.width = pct + '%';
-      }, err => rej(err), async () => {
-        const dl = await getDownloadURL(uploadTask.snapshot.ref);
-        urls.push(dl);
-        res();
+
+  let uploadedCount = 0;
+  const totalCount = selectedFiles.length;
+
+  const uploadPromises = selectedFiles.map((file, index) => {
+    return new Promise((resolve, reject) => {
+      const filePath = `posts/${postId}/${Date.now()}_${index}.jpg`;
+      const sRef = storageRef(storage, filePath);
+      const uploadTask = uploadBytesResumable(sRef, file);
+
+      uploadTask.on('state_changed', snap => {
+        // Combined progress
+        const filePct = snap.bytesTransferred / snap.totalBytes;
+        const overallPct = ((uploadedCount + filePct) / totalCount) * 100;
+        progressBar.style.width = overallPct + '%';
+      }, reject, async () => {
+        uploadedCount++;
+        const url = await getDownloadURL(uploadTask.snapshot.ref);
+        resolve(url);
       });
     });
-  }
+  });
 
-  // update post doc with image urls
-  await updateDoc(doc(db, 'posts', postId), { imageUrls: urls });
+  const urls = await Promise.all(uploadPromises);
+
+  // Update images once
+  await setDoc(postRef, { imageUrls: urls }, { merge: true });
+
   location.href = 'homepage.html';
 });
 </script>
 </body>
-  </html>
+</html>
