@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Homepage</title>
 <style>
   :root{--primary:#6e8ef5;--accent:#ff6e6e}
@@ -16,8 +16,8 @@
   .post-name{font-weight:700;cursor:pointer}
   .post-time{color:#777;font-size:12px}
   .post-text{margin:12px 0;white-space:pre-wrap}
-  .post-images{display:flex;gap:8px;overflow:hidden}
-  .post-images img{max-height:220px;border-radius:10px;object-fit:cover}
+  .post-images{display:flex;gap:8px;overflow:hidden;flex-wrap:wrap}
+  .post-images img{max-height:220px;border-radius:10px;object-fit:cover;cursor:pointer}
   .actions{margin-top:10px;display:flex;gap:8px;align-items:center}
   .btn{padding:8px 12px;border:none;border-radius:8px;cursor:pointer}
   .like-btn{background:var(--accent);color:#fff}
@@ -29,6 +29,7 @@
   .floating-post{position:fixed;right:22px;bottom:22px;width:58px;height:58px;border-radius:999px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-size:32px;box-shadow:0 8px 24px rgba(0,0,0,.15);cursor:pointer}
   .load-more{padding:12px;text-align:center;color:#555}
   .follow-btn{padding:6px 10px;border-radius:8px;border:none;background:#fff;color:var(--primary);cursor:pointer}
+  textarea.comment-input{width:100%;padding:8px;border-radius:8px;border:1px solid #ddd;margin-bottom:6px;resize:none}
 </style>
 </head>
 <body>
@@ -59,7 +60,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
   authDomain: "swipe-f90ed.firebaseapp.com",
   projectId: "swipe-f90ed",
-  storageBucket: "swipe-f90ed.firebasestorage.app",
+  storageBucket: "swipe-f90ed.appspot.com", // ✅ fixed
   messagingSenderId: "360540214416",
   appId: "1:360540214416:web:3e92fe77e5c93283d47415",
   measurementId: "G-4SV32V4N0N"
@@ -70,35 +71,30 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 let currentUser = null;
-onAuthStateChanged(auth, u => currentUser = u);
+onAuthStateChanged(auth, user => currentUser = user);
 
-const postsContainer = document.getElementById("postsContainer");
-const loadMoreEl = document.getElementById("loadMore");
+const postsContainer = document.getElementById('postsContainer');
+const loadMoreEl = document.getElementById('loadMore');
+const floatingPost = document.getElementById('floatingPost');
+
+floatingPost.addEventListener('click', () => location.href='post.html');
 
 const PAGE_SIZE = 6;
 let lastVisible = null;
 let loading = false;
 let finished = false;
 
-/* ------------------- Utilities ------------------- */
-const escapeHtml = s => s?.replace(/[&<>]/g, m => (
-  { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m]
-)) ?? "";
+/* ----------------- Helpers ----------------- */
+const escapeHtml = s => s?.replace(/[&<>]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])) ?? '';
+const formatTime = ts => { try { return ts?.toDate().toLocaleString() || "Just now" } catch { return "Just now" } };
 
-const formatTime = ts => {
-  try { return ts?.toDate().toLocaleString() || "Just now" }
-  catch { return "Just now" }
-};
-
-/* ------------------- Render Post ------------------- */
+/* ----------------- Render Post ----------------- */
 function renderPostCard(postId, data) {
-  const frag = document.createDocumentFragment();
-
-  const card = document.createElement("div");
-  card.className = "post-card";
+  const card = document.createElement('div');
+  card.className = 'post-card';
   card.id = `post-${postId}`;
 
-  const avatarInitial = (data.name || "U")[0].toUpperCase();
+  const avatarInitial = (data.name || 'U')[0].toUpperCase();
 
   card.innerHTML = `
     <div class="post-header">
@@ -117,7 +113,7 @@ function renderPostCard(postId, data) {
       <button class="btn like-btn" id="like-${postId}">❤️ Like</button>
       <span class="likes-count" id="likes-${postId}">0</span>
       <button class="btn comment-btn" id="toggle-${postId}">💬 Comment</button>
-      ${currentUser && currentUser.uid === data.uid ? `<button class="btn delete-btn" id="del-${postId}">🗑 Delete</button>` : ""}
+      ${currentUser?.uid === data.uid ? `<button class="btn delete-btn" id="del-${postId}">🗑 Delete</button>` : ""}
     </div>
 
     <div class="comments-area" id="carea-${postId}" style="display:none">
@@ -127,171 +123,124 @@ function renderPostCard(postId, data) {
     </div>
   `;
 
-  /* Images */
+  /* Render images */
+  const imgBox = card.querySelector(`#img-${postId}`);
   if (data.imageUrls?.length) {
-    const imgBox = card.querySelector(`#img-${postId}`);
-    data.imageUrls.forEach(url => {
-      const img = document.createElement("img");
+    data.imageUrls.forEach(url=>{
+      const img = document.createElement('img');
       img.src = url;
-      img.style.maxWidth = data.imageUrls.length === 1 ? "100%" : "48%";
-      img.loading = "lazy"; // ⭐ faster load
-      img.onclick = () => window.open(url, "_blank");
+      img.style.maxWidth = data.imageUrls.length===1?'100%':'48%';
+      img.loading='lazy';
+      img.onclick = ()=>window.open(url,'_blank');
       imgBox.appendChild(img);
     });
   }
 
   /* Profile click */
-  card.querySelector(".post-name").onclick = e => {
+  card.querySelector('.post-name').onclick = e=>{
     const uid = e.target.dataset.uid;
     location.href = `profile.html?uid=${uid}`;
   };
 
-  /* Like system */
-  card.querySelector(`#like-${postId}`).onclick = async () => {
-    if (!currentUser) return alert("Login first");
-    await setDoc(doc(db, "posts", postId, "likes", currentUser.uid), {
-      likedAt: new Date()
-    });
+  /* Likes */
+  const likeBtn = card.querySelector(`#like-${postId}`);
+  likeBtn.onclick = async ()=>{
+    if(!currentUser) return alert('Login first');
+    await setDoc(doc(db,'posts',postId,'likes',currentUser.uid),{likedAt:new Date()});
   };
+  onSnapshot(collection(db,'posts',postId,'likes'), snap=>{
+    card.querySelector(`#likes-${postId}`).textContent = snap.size;
+  });
 
   /* Delete */
-  const del = card.querySelector(`#del-${postId}`);
-  if (del) {
-    del.onclick = async () => {
-      if (!confirm("Delete this post?")) return;
-      await deleteDoc(doc(db, "posts", postId));
+  const delBtn = card.querySelector(`#del-${postId}`);
+  if(delBtn){
+    delBtn.onclick = async ()=>{
+      if(!confirm('Delete this post?')) return;
+      await deleteDoc(doc(db,'posts',postId));
       card.remove();
     };
   }
 
   /* Follow */
   const fbtn = card.querySelector(`#follow-${postId}`);
-  if (fbtn) {
-    fbtn.onclick = async () => {
-      if (!currentUser) return alert("Login");
-
-      const follower = doc(db, "users", data.uid, "followers", currentUser.uid);
-      const following = doc(db, "users", currentUser.uid, "following", data.uid);
-
+  if(fbtn){
+    fbtn.onclick = async ()=>{
+      if(!currentUser) return alert('Login');
+      const follower = doc(db,'users',data.uid,'followers',currentUser.uid);
+      const following = doc(db,'users',currentUser.uid,'following',data.uid);
       const snap = await getDoc(follower);
-      if (snap.exists()) {
-        await deleteDoc(follower);
-        await deleteDoc(following);
-        fbtn.textContent = "Follow";
-      } else {
-        await setDoc(follower, { followedAt: new Date() });
-        await setDoc(following, { followedAt: new Date() });
-        fbtn.textContent = "Following";
+      if(snap.exists()){
+        await deleteDoc(follower); await deleteDoc(following); fbtn.textContent='Follow';
+      } else{
+        await setDoc(follower,{followedAt:new Date()});
+        await setDoc(following,{followedAt:new Date()});
+        fbtn.textContent='Following';
       }
     };
-
-    // set initial state (NO repeated DB reads)
-    getDoc(doc(db, "users", data.uid, "followers", currentUser?.uid))
-      .then(s => fbtn.textContent = s.exists() ? "Following" : "Follow");
+    getDoc(doc(db,'users',data.uid,'followers',currentUser?.uid))
+      .then(s=>fbtn.textContent = s.exists()?'Following':'Follow');
   }
 
-  /* Toggle comments */
+  /* Comments */
   const carea = card.querySelector(`#carea-${postId}`);
-  card.querySelector(`#toggle-${postId}`).onclick = () => {
-    carea.style.display = carea.style.display === "none" ? "block" : "none";
-  };
-
-  /* Live likes */
-  onSnapshot(collection(db, "posts", postId, "likes"), snap => {
-    card.querySelector(`#likes-${postId}`).textContent = snap.size;
-  });
-
-  /* Live comments — optimized (does NOT re-render the input box every time) */
+  card.querySelector(`#toggle-${postId}`).onclick = ()=>carea.style.display = carea.style.display==='none'?'block':'none';
   const list = card.querySelector(`#clist-${postId}`);
-  onSnapshot(collection(db, "posts", postId, "comments"), snap => {
-    list.innerHTML = "";
-    const f = document.createDocumentFragment();
-    snap.forEach(c => {
+  onSnapshot(collection(db,'posts',postId,'comments'),snap=>{
+    list.innerHTML='';
+    const frag = document.createDocumentFragment();
+    snap.forEach(c=>{
       const d = c.data();
-      const div = document.createElement("div");
-      div.className = "comment-card";
-      div.innerHTML = `
-        <div style="font-weight:700">${d.name}</div>
-        <div style="font-size:12px;color:#666">${formatTime(d.createdAt)}</div>
-        <div>${escapeHtml(d.text)}</div>
-      `;
-      f.appendChild(div);
+      const div = document.createElement('div');
+      div.className='comment-card';
+      div.innerHTML=`<div style="font-weight:700">${d.name}</div><div style="font-size:12px;color:#666">${formatTime(d.createdAt)}</div><div>${escapeHtml(d.text)}</div>`;
+      frag.appendChild(div);
     });
-    list.appendChild(f);
+    list.appendChild(frag);
   });
-
-  /* Post comment */
-  card.querySelector(`#cpost-${postId}`).onclick = async () => {
-    if (!currentUser) return alert("Login first");
-    const box = card.querySelector(`#cinput-${postId}`);
-    const txt = box.value.trim();
-    if (!txt) return;
-
-    await addDoc(collection(db, "posts", postId, "comments"), {
-      uid: currentUser.uid,
-      name: currentUser.displayName || currentUser.email,
-      text: txt,
-      createdAt: new Date()
+  card.querySelector(`#cpost-${postId}`).onclick = async ()=>{
+    if(!currentUser) return alert('Login first');
+    const txt = card.querySelector(`#cinput-${postId}`).value.trim();
+    if(!txt) return;
+    await addDoc(collection(db,'posts',postId,'comments'),{
+      uid:currentUser.uid,
+      name:currentUser.displayName||currentUser.email||'Unknown',
+      text:txt,
+      createdAt:new Date()
     });
-    box.value = "";
+    card.querySelector(`#cinput-${postId}`).value='';
   };
 
-  frag.appendChild(card);
-  postsContainer.appendChild(frag);
+  postsContainer.appendChild(card);
 }
 
-/* ------------------- Pagination ------------------- */
-async function loadInitial() {
-  if (loading || finished) return;
+/* ----------------- Load Posts ----------------- */
+async function loadPosts(initial=false){
+  if(loading || finished) return;
   loading = true;
+  let q = query(collection(db,'posts'),orderBy('createdAt','desc'),limit(PAGE_SIZE));
+  if(!initial && lastVisible) q = query(collection(db,'posts'),orderBy('createdAt','desc'),startAfter(lastVisible),limit(PAGE_SIZE));
 
-  const q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(PAGE_SIZE));
   const snap = await getDocs(q);
-
-  if (snap.empty) {
+  if(snap.empty){
     finished = true;
-    loadMoreEl.textContent = "No posts yet";
+    loadMoreEl.textContent = initial?'No posts yet':'No more posts';
+    loading=false;
     return;
   }
 
-  lastVisible = snap.docs[snap.docs.length - 1];
-  snap.docs.forEach(docSnap => renderPostCard(docSnap.id, docSnap.data()));
-
-  loading = false;
+  lastVisible = snap.docs[snap.docs.length-1];
+  snap.docs.forEach(d=>renderPostCard(d.id,d.data()));
+  loading=false;
 }
 
-async function loadMore() {
-  if (loading || finished || !lastVisible) return;
-  loading = true;
-
-  const q = query(
-    collection(db, "posts"),
-    orderBy("createdAt", "desc"),
-    startAfter(lastVisible),
-    limit(PAGE_SIZE)
-  );
-
-  const snap = await getDocs(q);
-  if (snap.empty) {
-    finished = true;
-    loadMoreEl.textContent = "No more posts";
-    return;
-  }
-
-  lastVisible = snap.docs[snap.docs.length - 1];
-  snap.docs.forEach(d => renderPostCard(d.id, d.data()));
-
-  loading = false;
-}
-
-/* Infinite scroll */
-window.addEventListener("scroll", () => {
-  if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 140) {
-    loadMore();
+window.addEventListener('scroll',()=>{
+  if((window.innerHeight + window.scrollY) >= document.body.offsetHeight-120){
+    loadPosts();
   }
 });
 
-loadInitial();
+loadPosts(true);
 </script>
 </body>
 </html>
