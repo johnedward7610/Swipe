@@ -35,11 +35,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
-  getFirestore, collection, doc, addDoc, setDoc, updateDoc, serverTimestamp
+  getFirestore, collection, addDoc, updateDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import {
-  getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
 
 // 🔑 Firebase config
 const firebaseConfig = {
@@ -55,7 +52,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
+
+// ⭐ Cloudinary Config
+const CLOUD_NAME = "dkq1530ap";
+const UPLOAD_PRESET = "bc0uzx6v";
+const CLOUD_URL = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
 
 let currentUser = null;
 onAuthStateChanged(auth, u => { 
@@ -87,7 +88,7 @@ imagesInput.addEventListener('change', e => {
 // Cancel button
 cancelBtn.addEventListener('click', () => location.href='homepage.html');
 
-// Compress image to reduce size
+// Compress image (same as before)
 const compressImage = (file) => new Promise(resolve => {
   const reader = new FileReader();
   reader.onload = e => {
@@ -109,12 +110,44 @@ const compressImage = (file) => new Promise(resolve => {
   reader.readAsDataURL(file);
 });
 
-// Post button click
+// ⭐ Upload to Cloudinary
+async function uploadToCloudinary(file, index, total) {
+  return new Promise(async (resolve, reject) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("upload_preset", UPLOAD_PRESET);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", CLOUD_URL, true);
+
+    // Progress bar support
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const pct = e.loaded / e.total;
+        const overallPct = ((index + pct) / total) * 100;
+        progressBar.style.width = overallPct + "%";
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const res = JSON.parse(xhr.responseText);
+        resolve(res.secure_url);
+      } else reject("Upload failed");
+    };
+
+    xhr.onerror = reject;
+
+    xhr.send(form);
+  });
+}
+
+// ⭐ Post button
 postBtn.addEventListener('click', async () => {
   const text = document.getElementById('postText').value.trim();
   if (!text && selectedFiles.length === 0) return alert('Write something or attach images');
 
-  // Create post first
+  // 1️⃣ Create post first
   const postRef = await addDoc(collection(db, "posts"), {
     uid: currentUser.uid,
     name: currentUser.displayName || currentUser.email,
@@ -123,37 +156,24 @@ postBtn.addEventListener('click', async () => {
     imageUrls: []
   });
 
-  const postId = postRef.id;
-
   if (selectedFiles.length === 0) return location.href='homepage.html';
 
   progressEl.style.display = "block";
 
-  let uploadedCount = 0;
-  const totalCount = selectedFiles.length;
+  // 2️⃣ Upload each file to Cloudinary
+  const urls = [];
+  const total = selectedFiles.length;
 
-  const uploadPromises = selectedFiles.map(async (file, index) => {
-    const compressed = await compressImage(file);
-    const path = `posts/${postId}/${Date.now()}_${index}.jpg`;
-    const sRef = storageRef(storage, path);
-    const task = uploadBytesResumable(sRef, compressed);
+  for (let i = 0; i < total; i++) {
+    const compressed = await compressImage(selectedFiles[i]);
+    const url = await uploadToCloudinary(compressed, i, total);
+    urls.push(url);
+  }
 
-    return new Promise((resolve, reject) => {
-      task.on('state_changed', snap => {
-        const pct = snap.bytesTransferred / snap.totalBytes;
-        const overallPct = ((uploadedCount + pct) / totalCount) * 100;
-        progressBar.style.width = Math.min(100, overallPct) + "%";
-      }, reject, async () => {
-        uploadedCount++;
-        const url = await getDownloadURL(task.snapshot.ref);
-        resolve(url);
-      });
-    });
-  });
-
-  const urls = await Promise.all(uploadPromises);
+  // 3️⃣ Save image URLs into Firestore
   await updateDoc(postRef, { imageUrls: urls });
 
+  // 4️⃣ Done
   location.href='homepage.html';
 });
 </script>
