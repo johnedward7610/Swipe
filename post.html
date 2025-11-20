@@ -12,9 +12,11 @@ input[type=file]{margin-top:8px}
 .img-preview{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 .img-preview img, .img-preview video{height:80px;border-radius:8px;object-fit:cover}
 .btn{padding:10px 14px;border:none;border-radius:8px;background:#6e8ef5;color:#fff;cursor:pointer}
+.btn.cancel{background:#ddd;color:#222}
 .small{font-size:13px;color:#666;margin-top:8px}
-.progress{height:8px;background:#eee;border-radius:8px;margin-top:8px;overflow:hidden}
-.progress > i{display:block;height:100%;background:#6e8ef5;width:0%}
+.progress{height:8px;background:#eee;border-radius:8px;margin-top:8px;overflow:hidden;position:relative}
+.progress i{display:block;height:100%;background:#6e8ef5;width:0%}
+.progress span{position:absolute;top:-22px;right:0;font-size:12px;color:#333}
 </style>
 </head>
 <body>
@@ -24,17 +26,20 @@ input[type=file]{margin-top:8px}
   <div class="small">Attach images/videos (max 6)</div>
   <input type="file" id="media" accept="image/*,video/*" multiple />
   <div class="img-preview" id="preview"></div>
-  <div class="progress" id="progress" style="display:none"><i id="progressbar"></i></div>
+  <div class="progress" id="progress" style="display:none">
+    <i id="progressbar"></i>
+    <span id="progressPct">0%</span>
+  </div>
   <div style="display:flex;gap:8px;margin-top:12px">
     <button class="btn" id="postBtn">Post</button>
-    <button class="btn" style="background:#ddd;color:#222" id="cancelBtn">Cancel</button>
+    <button class="btn cancel" id="cancelBtn">Cancel</button>
   </div>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, serverTimestamp, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 // Firebase config
 const firebaseConfig = {
@@ -63,6 +68,7 @@ const mediaInput = document.getElementById('media');
 const preview = document.getElementById('preview');
 const progressEl = document.getElementById('progress');
 const progressBar = document.getElementById('progressbar');
+const progressPct = document.getElementById('progressPct');
 
 let selectedFiles = [];
 
@@ -70,7 +76,7 @@ let selectedFiles = [];
 mediaInput.addEventListener('change', e => {
   selectedFiles = Array.from(e.target.files).slice(0,6); // max 6
   preview.innerHTML = '';
-  selectedFiles.forEach(file=>{
+  selectedFiles.forEach(file => {
     const url = URL.createObjectURL(file);
     if(file.type.startsWith('video/')){
       const video = document.createElement('video');
@@ -87,33 +93,33 @@ mediaInput.addEventListener('change', e => {
 
 cancelBtn.addEventListener('click', ()=>location.href='homepage.html');
 
-// Upload to Cloudinary
+// Cloudinary upload
 async function uploadToCloudinary(file){
   const url = `https://api.cloudinary.com/v1_1/dkq1530ap/upload`;
   const formData = new FormData();
   formData.append('file', file);
   formData.append('upload_preset', 'bc0uzx6v');
-  
+
   return new Promise((resolve, reject)=>{
     const xhr = new XMLHttpRequest();
     xhr.open('POST', url);
-    
+
     xhr.upload.onprogress = e => {
       if(e.lengthComputable){
-        const pct = (e.loaded / e.total) * 100;
+        const pct = Math.round((e.loaded / e.total) * 100);
         progressBar.style.width = pct + '%';
+        progressPct.innerText = pct + '%';
       }
     };
-    
+
     xhr.onload = () => {
       if(xhr.status === 200){
         const res = JSON.parse(xhr.responseText);
         resolve(res.secure_url);
-      } else reject(xhr.responseText);
+      } else reject(`Cloudinary error: ${xhr.responseText}`);
     };
-    
+
     xhr.onerror = () => reject('Upload error');
-    
     xhr.send(formData);
   });
 }
@@ -123,27 +129,36 @@ postBtn.addEventListener('click', async ()=>{
   const text = document.getElementById('postText').value.trim();
   if(!text && selectedFiles.length===0) return alert('Write something or attach media');
 
-  // Create post first
-  const postRef = await addDoc(collection(db,'posts'),{
-    uid: currentUser.uid,
-    name: currentUser.displayName || currentUser.email,
-    text,
-    createdAt: serverTimestamp(),
-    mediaUrls: []
-  });
-
-  if(selectedFiles.length === 0) return location.href='homepage.html';
-
+  postBtn.disabled = true;
+  progressBar.style.width = '0%';
+  progressPct.innerText = '0%';
   progressEl.style.display = 'block';
-  const urls = [];
-  
-  for(let i=0;i<selectedFiles.length;i++){
-    const url = await uploadToCloudinary(selectedFiles[i]);
-    urls.push(url);
-  }
 
-  await updateDoc(postRef,{mediaUrls: urls});
-  location.href='homepage.html';
+  try {
+    // Create Firestore post
+    const postRef = await addDoc(collection(db,'posts'),{
+      uid: currentUser.uid,
+      name: currentUser.displayName || currentUser.email,
+      text,
+      createdAt: serverTimestamp(),
+      mediaUrls: []
+    });
+
+    if(selectedFiles.length>0){
+      const urls = [];
+      for(let i=0;i<selectedFiles.length;i++){
+        const url = await uploadToCloudinary(selectedFiles[i]);
+        urls.push(url);
+      }
+      await updateDoc(postRef,{mediaUrls: urls});
+    }
+
+    location.href='homepage.html';
+  } catch(err){
+    alert('Failed to post: '+err);
+    postBtn.disabled = false;
+    progressEl.style.display = 'none';
+  }
 });
 </script>
 </body>
