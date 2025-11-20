@@ -74,7 +74,7 @@ let selectedFiles = [];
 
 // Preview media
 mediaInput.addEventListener('change', e => {
-  selectedFiles = Array.from(e.target.files).slice(0,6); // max 6
+  selectedFiles = Array.from(e.target.files).slice(0,6);
   preview.innerHTML = '';
   selectedFiles.forEach(file => {
     const url = URL.createObjectURL(file);
@@ -153,6 +153,7 @@ postBtn.addEventListener('click', async ()=>{
       await updateDoc(postRef,{mediaUrls: urls});
     }
 
+    alert('Post created successfully!');
     location.href='homepage.html';
   } catch(err){
     alert('Failed to post: '+err);
