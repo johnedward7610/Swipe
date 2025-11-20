@@ -12,7 +12,7 @@ body{font-family:sans-serif;background:#f4f6ff;margin:0;padding:20px;}
 #feed{max-width:800px;margin:0 auto}
 .post-card{background:#fff;padding:16px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:16px}
 .post-header{display:flex;align-items:center;gap:12px}
-.avatar{width:48px;height:48px;border-radius:999px;background:linear-gradient(135deg,#cfe1ff,#e7dfff);display:flex;align-items:center;justify-content:center;font-weight:700}
+.avatar{width:48px;height:48px;border-radius:999px;background:linear-gradient(135deg,#cfe1ff,#e7dfff);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;overflow:hidden}
 .post-name{font-weight:700;cursor:pointer}
 .post-time{color:#777;font-size:12px}
 .post-text{margin:12px 0;white-space:pre-wrap}
@@ -80,22 +80,29 @@ let lastVisible = null;
 let loading = false;
 let finished = false;
 
-/* ----------------- Helpers ----------------- */
 const escapeHtml = s => s?.replace(/[&<>]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])) ?? '';
 const formatTime = ts => { try { return ts?.toDate().toLocaleString() || "Just now" } catch { return "Just now" } };
 
-/* ----------------- Render Post ----------------- */
-function renderPostCard(postId, data){
+async function getUserProfile(uid){
+  const userDoc = await getDoc(doc(db,'users',uid));
+  return userDoc.exists() ? userDoc.data() : null;
+}
+
+async function renderPostCard(postId, data){
   const card = document.createElement('div');
   card.className = 'post-card';
   card.id = `post-${postId}`;
-  const avatarInitial = (data.name || 'U')[0].toUpperCase();
+
+  // Fetch user profile for name & photo
+  const profile = await getUserProfile(data.uid);
+  const displayName = profile?.fullName || profile?.displayName || 'Unknown';
+  const photoURL = profile?.photoURL || '';
 
   card.innerHTML = `
     <div class="post-header">
-      <div class="avatar">${avatarInitial}</div>
+      <div class="avatar" style="${photoURL?'background-image:url('+photoURL+');background-size:cover;background-position:center':''}">${photoURL?'':displayName[0].toUpperCase()}</div>
       <div style="flex:1">
-        <div class="post-name" data-uid="${data.uid}">${data.name}</div>
+        <div class="post-name" data-uid="${data.uid}">${displayName}</div>
         <div class="post-time">${formatTime(data.createdAt)}</div>
       </div>
       ${currentUser?.uid !== data.uid ? `<button class="follow-btn" id="follow-${postId}">Follow</button>` : ""}
@@ -118,7 +125,6 @@ function renderPostCard(postId, data){
     </div>
   `;
 
-  /* Render media (images/videos from Cloudinary) */
   const imgBox = card.querySelector(`#img-${postId}`);
   if(data.mediaUrls?.length){
     data.mediaUrls.forEach(url=>{
@@ -137,13 +143,11 @@ function renderPostCard(postId, data){
     });
   }
 
-  /* Profile click */
   card.querySelector('.post-name').onclick = e=>{
     const uid = e.target.dataset.uid;
     location.href = `profile.html?uid=${uid}`;
   };
 
-  /* Likes */
   const likeBtn = card.querySelector(`#like-${postId}`);
   likeBtn.onclick = async ()=>{
     if(!currentUser) return alert('Login first');
@@ -153,7 +157,6 @@ function renderPostCard(postId, data){
     card.querySelector(`#likes-${postId}`).textContent = snap.size;
   });
 
-  /* Delete */
   const delBtn = card.querySelector(`#del-${postId}`);
   if(delBtn){
     delBtn.onclick = async ()=>{
@@ -163,7 +166,6 @@ function renderPostCard(postId, data){
     };
   }
 
-  /* Follow */
   const fbtn = card.querySelector(`#follow-${postId}`);
   if(fbtn){
     fbtn.onclick = async ()=>{
@@ -177,7 +179,6 @@ function renderPostCard(postId, data){
     getDoc(doc(db,'users',data.uid,'followers',currentUser?.uid)).then(s=>fbtn.textContent = s.exists()?'Following':'Follow');
   }
 
-  /* Comments */
   const carea = card.querySelector(`#carea-${postId}`);
   card.querySelector(`#toggle-${postId}`).onclick = ()=>carea.style.display = carea.style.display==='none'?'block':'none';
   const list = card.querySelector(`#clist-${postId}`);
@@ -209,7 +210,6 @@ function renderPostCard(postId, data){
   postsContainer.appendChild(card);
 }
 
-/* ----------------- Load Posts ----------------- */
 async function loadPosts(initial=false){
   if(loading || finished) return;
   loading = true;
