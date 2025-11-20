@@ -5,76 +5,54 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Homepage</title>
 <style>
-  :root{--primary:#6e8ef5;--accent:#ff6e6e;--muted:#777}
-  html,body{height:100%}
-  body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;background:#f4f6ff;margin:0;padding:20px;box-sizing:border-box;color:#111}
-  .container{max-width:900px;margin:0 auto}
-  .hotbar{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
-  .hotbar button{padding:10px 14px;border:none;border-radius:10px;background:var(--primary);color:#fff;cursor:pointer;font-weight:600}
-  .hotbar .ghost{background:#fff;color:var(--primary);border:1px solid rgba(110,142,245,.12)}
-  h2{margin:6px 0 14px 0}
-  #feed{display:block}
-  .post-card{background:#fff;padding:16px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.06);margin-bottom:16px;overflow:hidden}
-  .post-header{display:flex;align-items:center;gap:12px}
-  .avatar{width:48px;height:48px;border-radius:999px;background:linear-gradient(135deg,#cfe1ff,#e7dfff);display:flex;align-items:center;justify-content:center;font-weight:700;color:#034;border-radius:50%}
-  .post-meta{flex:1}
-  .post-name{font-weight:700;cursor:pointer}
-  .post-time{color:var(--muted);font-size:12px}
-  .post-text{margin:12px 0;white-space:pre-wrap;line-height:1.45}
-  .post-images{display:flex;gap:8px;overflow:hidden;flex-wrap:wrap}
-  .post-images img{border-radius:10px;object-fit:cover;cursor:pointer;max-width:100%}
-  .actions{margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .btn{padding:8px 12px;border:none;border-radius:8px;cursor:pointer;font-weight:600}
-  .like-btn{background:var(--accent);color:#fff}
-  .comment-btn{background:var(--primary);color:#fff}
-  .delete-btn{background:#222;color:#fff}
-  .likes-count{font-weight:700;margin-left:6px}
-  .comments-area{margin-top:12px;border-top:1px solid #f0f0f5;padding-top:12px;display:none}
-  .comment-card{background:#f6f7ff;padding:8px;border-radius:8px;margin-bottom:8px}
-  .floating-post{position:fixed;right:22px;bottom:22px;width:58px;height:58px;border-radius:999px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-size:32px;box-shadow:0 8px 24px rgba(0,0,0,.15);cursor:pointer}
-  .load-more{padding:14px;text-align:center;color:#555;border-radius:8px;background:transparent;cursor:pointer}
-  .follow-btn{padding:6px 10px;border-radius:8px;border:none;background:#fff;color:var(--primary);cursor:pointer;font-weight:700}
-  textarea.comment-input{width:100%;padding:10px;border-radius:8px;border:1px solid #eee;margin-bottom:6px;resize:none}
-  #loadMoreWrapper{display:flex;justify-content:center;margin:12px 0}
-  .empty{padding:30px;text-align:center;color:var(--muted);background:#fff;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,.04)}
-  @media (min-width:900px){
-    .post-images img.single{max-height:420px}
-    .post-images img.multi{width:48% ;max-height:260px}
-  }
-  @media (max-width:599px){
-    .hotbar button{flex:1}
-  }
+:root{--primary:#6e8ef5;--accent:#ff6e6e}
+body{font-family:sans-serif;background:#f4f6ff;margin:0;padding:20px;}
+.hotbar{display:flex;gap:10px;margin-bottom:14px}
+.hotbar button{padding:10px 16px;border:none;border-radius:10px;background:var(--primary);color:#fff;cursor:pointer}
+#feed{max-width:800px;margin:0 auto}
+.post-card{background:#fff;padding:16px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:16px}
+.post-header{display:flex;align-items:center;gap:12px}
+.avatar{width:48px;height:48px;border-radius:999px;background:linear-gradient(135deg,#cfe1ff,#e7dfff);display:flex;align-items:center;justify-content:center;font-weight:700}
+.post-name{font-weight:700;cursor:pointer}
+.post-time{color:#777;font-size:12px}
+.post-text{margin:12px 0;white-space:pre-wrap}
+.post-images{display:flex;gap:8px;overflow:hidden;flex-wrap:wrap}
+.post-images img, .post-images video{max-height:220px;border-radius:10px;object-fit:cover;cursor:pointer}
+.actions{margin-top:10px;display:flex;gap:8px;align-items:center}
+.btn{padding:8px 12px;border:none;border-radius:8px;cursor:pointer}
+.like-btn{background:var(--accent);color:#fff}
+.comment-btn{background:var(--primary);color:#fff}
+.delete-btn{background:#222;color:#fff}
+.likes-count{font-weight:700;margin-left:6px}
+.comments-area{margin-top:10px;border-top:1px solid #eee;padding-top:10px}
+.comment-card{background:#f6f7ff;padding:8px;border-radius:8px;margin-bottom:8px}
+.floating-post{position:fixed;right:22px;bottom:22px;width:58px;height:58px;border-radius:999px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-size:32px;box-shadow:0 8px 24px rgba(0,0,0,.15);cursor:pointer}
+.load-more{padding:12px;text-align:center;color:#555}
+.follow-btn{padding:6px 10px;border-radius:8px;border:none;background:#fff;color:var(--primary);cursor:pointer}
+textarea.comment-input{width:100%;padding:8px;border-radius:8px;border:1px solid #ddd;margin-bottom:6px;resize:none}
 </style>
 </head>
 <body>
-  <div class="container">
-    <div class="hotbar">
-      <button onclick="location.href='profile.html'">My Profile</button>
-      <button onclick="location.href='user.html'">Users</button>
-      <button onclick="location.href='post.html'">Create Post</button>
-      <button class="ghost" onclick="location.href='settings.html'">Settings</button>
-    </div>
 
-    <h2>Posts</h2>
-    <div id="feed">
-      <div id="postsContainer"></div>
-      <div id="loadMoreWrapper"><div id="loadMore" class="load-more">Scroll to load more…</div></div>
-    </div>
+<div class="hotbar">
+  <button onclick="location.href='profile.html'">My Profile</button>
+  <button onclick="location.href='user.html'">Users</button>
+  <button onclick="location.href='post.html'">Create Post</button>
+</div>
 
-    <div id="emptyState" class="empty" style="display:none">No posts yet. Create the first one!</div>
-  </div>
+<div id="feed">
+  <h2>Posts</h2>
+  <div id="postsContainer"></div>
+  <div id="loadMore" class="load-more">Scroll to load more…</div>
+</div>
 
-  <div class="floating-post" id="floatingPost" title="Create post">+</div>
+<div class="floating-post" id="floatingPost" title="Create post">+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import {
-  getFirestore, collection, query, orderBy, limit, startAfter,
-  getDocs, doc, onSnapshot, deleteDoc, setDoc, getDoc, addDoc
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, collection, query, orderBy, limit, startAfter, getDocs, doc, onSnapshot, deleteDoc, setDoc, getDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
-/* ----------------- FIREBASE CONFIG ----------------- */
 const firebaseConfig = {
   apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
   authDomain: "swipe-f90ed.firebaseapp.com",
@@ -89,56 +67,41 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-/* ----------------- STATE ----------------- */
 let currentUser = null;
-onAuthStateChanged(auth, u => currentUser = u);
+onAuthStateChanged(auth, user => currentUser = user);
 
-/* DOM */
 const postsContainer = document.getElementById('postsContainer');
 const loadMoreEl = document.getElementById('loadMore');
 const floatingPost = document.getElementById('floatingPost');
-const emptyState = document.getElementById('emptyState');
+floatingPost.addEventListener('click', ()=>location.href='post.html');
 
-floatingPost.addEventListener('click', ()=> location.href='post.html');
-
-/* pagination */
 const PAGE_SIZE = 6;
 let lastVisible = null;
 let loading = false;
 let finished = false;
 
-/* helpers */
+/* ----------------- Helpers ----------------- */
 const escapeHtml = s => s?.replace(/[&<>]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])) ?? '';
-const formatTime = ts => {
-  try {
-    if(!ts) return "Just now";
-    // if ts is a Firestore timestamp object
-    if (typeof ts.toDate === "function") return ts.toDate().toLocaleString();
-    // fallback if stored as Date
-    if (ts instanceof Date) return ts.toLocaleString();
-    return String(ts);
-  } catch (e) { return "Just now"; }
-};
+const formatTime = ts => { try { return ts?.toDate().toLocaleString() || "Just now" } catch { return "Just now" } };
 
 /* ----------------- Render Post ----------------- */
-function renderPostCard(postId, data) {
+function renderPostCard(postId, data){
   const card = document.createElement('div');
   card.className = 'post-card';
   card.id = `post-${postId}`;
-
-  const avatarInitial = (data.name || 'U')[0]?.toUpperCase() || 'U';
+  const avatarInitial = (data.name || 'U')[0].toUpperCase();
 
   card.innerHTML = `
     <div class="post-header">
       <div class="avatar">${avatarInitial}</div>
-      <div class="post-meta">
-        <div class="post-name" data-uid="${data.uid}">${escapeHtml(data.name || 'Unknown')}</div>
+      <div style="flex:1">
+        <div class="post-name" data-uid="${data.uid}">${data.name}</div>
         <div class="post-time">${formatTime(data.createdAt)}</div>
       </div>
       ${currentUser?.uid !== data.uid ? `<button class="follow-btn" id="follow-${postId}">Follow</button>` : ""}
     </div>
 
-    <div class="post-text">${escapeHtml(data.text || '')}</div>
+    <div class="post-text">${escapeHtml(data.text)}</div>
     <div class="post-images" id="img-${postId}"></div>
 
     <div class="actions">
@@ -155,179 +118,124 @@ function renderPostCard(postId, data) {
     </div>
   `;
 
-  /* Render images (supports Cloudinary URLs) */
+  /* Render media (images/videos from Cloudinary) */
   const imgBox = card.querySelector(`#img-${postId}`);
-  if (data.imageUrls?.length) {
-    const isSingle = data.imageUrls.length === 1;
-    data.imageUrls.forEach(url=>{
-      const img = document.createElement('img');
-      img.src = url;
-      img.loading = "lazy";
-      img.className = isSingle ? 'single' : 'multi';
-      img.onclick = ()=> window.open(url, '_blank');
-      imgBox.appendChild(img);
+  if(data.mediaUrls?.length){
+    data.mediaUrls.forEach(url=>{
+      if(url.match(/\.(mp4|webm|ogg)$/)){
+        const video = document.createElement('video');
+        video.src = url;
+        video.controls = true;
+        video.style.maxWidth = data.mediaUrls.length===1?'100%':'48%';
+        imgBox.appendChild(video);
+      } else {
+        const img = document.createElement('img');
+        img.src = url;
+        img.style.maxWidth = data.mediaUrls.length===1?'100%':'48%';
+        imgBox.appendChild(img);
+      }
     });
   }
 
   /* Profile click */
-  const nameEl = card.querySelector('.post-name');
-  nameEl.onclick = (e) => {
+  card.querySelector('.post-name').onclick = e=>{
     const uid = e.target.dataset.uid;
-    if (uid) location.href = `profile.html?uid=${uid}`;
+    location.href = `profile.html?uid=${uid}`;
   };
 
   /* Likes */
   const likeBtn = card.querySelector(`#like-${postId}`);
-  likeBtn.onclick = async () => {
-    if (!currentUser) return alert('Please login to like posts.');
-    try {
-      await setDoc(doc(db,'posts',postId,'likes',currentUser.uid), { likedAt: new Date() });
-    } catch (err) {
-      console.error('Like error', err);
-    }
+  likeBtn.onclick = async ()=>{
+    if(!currentUser) return alert('Login first');
+    await setDoc(doc(db,'posts',postId,'likes',currentUser.uid),{likedAt:new Date()});
   };
-  // realtime likes count
-  onSnapshot(collection(db,'posts',postId,'likes'), snap => {
-    const countEl = card.querySelector(`#likes-${postId}`);
-    if (countEl) countEl.textContent = snap.size;
+  onSnapshot(collection(db,'posts',postId,'likes'), snap=>{
+    card.querySelector(`#likes-${postId}`).textContent = snap.size;
   });
 
-  /* Delete (owner only) */
+  /* Delete */
   const delBtn = card.querySelector(`#del-${postId}`);
-  if (delBtn) {
-    delBtn.onclick = async () => {
-      if (!confirm('Delete this post?')) return;
-      try {
-        await deleteDoc(doc(db,'posts',postId));
-        card.remove();
-      } catch (err) { console.error('Delete post', err); alert('Failed to delete post'); }
+  if(delBtn){
+    delBtn.onclick = async ()=>{
+      if(!confirm('Delete this post?')) return;
+      await deleteDoc(doc(db,'posts',postId));
+      card.remove();
     };
   }
 
-  /* Follow/Unfollow */
+  /* Follow */
   const fbtn = card.querySelector(`#follow-${postId}`);
-  if (fbtn) {
-    fbtn.onclick = async () => {
-      if (!currentUser) return alert('Please login');
-      const followerRef = doc(db,'users',data.uid,'followers',currentUser.uid);
-      const followingRef = doc(db,'users',currentUser.uid,'following',data.uid);
-      try {
-        const snap = await getDoc(followerRef);
-        if (snap.exists()) {
-          await deleteDoc(followerRef);
-          await deleteDoc(followingRef);
-          fbtn.textContent = 'Follow';
-        } else {
-          await setDoc(followerRef, { followedAt: new Date() });
-          await setDoc(followingRef, { followedAt: new Date() });
-          fbtn.textContent = 'Following';
-        }
-      } catch (err) { console.error('Follow err', err); }
+  if(fbtn){
+    fbtn.onclick = async ()=>{
+      if(!currentUser) return alert('Login');
+      const follower = doc(db,'users',data.uid,'followers',currentUser.uid);
+      const following = doc(db,'users',currentUser.uid,'following',data.uid);
+      const snap = await getDoc(follower);
+      if(snap.exists()){ await deleteDoc(follower); await deleteDoc(following); fbtn.textContent='Follow'; }
+      else{ await setDoc(follower,{followedAt:new Date()}); await setDoc(following,{followedAt:new Date()}); fbtn.textContent='Following'; }
     };
-
-    // set initial follow state (best-effort)
-    (async ()=>{
-      if (!currentUser) return;
-      try {
-        const s = await getDoc(doc(db,'users',data.uid,'followers',currentUser.uid));
-        fbtn.textContent = s.exists() ? 'Following' : 'Follow';
-      } catch(e){ /* ignore */ }
-    })();
+    getDoc(doc(db,'users',data.uid,'followers',currentUser?.uid)).then(s=>fbtn.textContent = s.exists()?'Following':'Follow');
   }
 
-  /* Comments (realtime) */
+  /* Comments */
   const carea = card.querySelector(`#carea-${postId}`);
-  const toggle = card.querySelector(`#toggle-${postId}`);
-  toggle.onclick = ()=> carea.style.display = carea.style.display === 'none' ? 'block' : 'none';
-
+  card.querySelector(`#toggle-${postId}`).onclick = ()=>carea.style.display = carea.style.display==='none'?'block':'none';
   const list = card.querySelector(`#clist-${postId}`);
-  onSnapshot(collection(db,'posts',postId,'comments'), snap => {
-    list.innerHTML = '';
+  onSnapshot(collection(db,'posts',postId,'comments'),snap=>{
+    list.innerHTML='';
     const frag = document.createDocumentFragment();
-    snap.forEach(c => {
+    snap.forEach(c=>{
       const d = c.data();
       const div = document.createElement('div');
-      div.className = 'comment-card';
-      div.innerHTML = `<div style="font-weight:700">${escapeHtml(d.name||'Unknown')}</div>
-                       <div style="font-size:12px;color:var(--muted)">${formatTime(d.createdAt)}</div>
-                       <div>${escapeHtml(d.text||'')}</div>`;
+      div.className='comment-card';
+      div.innerHTML=`<div style="font-weight:700">${d.name}</div><div style="font-size:12px;color:#666">${formatTime(d.createdAt)}</div><div>${escapeHtml(d.text)}</div>`;
       frag.appendChild(div);
     });
     list.appendChild(frag);
   });
-
-  card.querySelector(`#cpost-${postId}`).onclick = async () => {
-    if (!currentUser) return alert('Please login to comment.');
+  card.querySelector(`#cpost-${postId}`).onclick = async ()=>{
+    if(!currentUser) return alert('Login first');
     const txt = card.querySelector(`#cinput-${postId}`).value.trim();
-    if (!txt) return;
-    try {
-      await addDoc(collection(db,'posts',postId,'comments'), {
-        uid: currentUser.uid,
-        name: currentUser.displayName || currentUser.email || 'Unknown',
-        text: txt,
-        createdAt: new Date()
-      });
-      card.querySelector(`#cinput-${postId}`).value = '';
-    } catch (err) { console.error('Comment err', err); alert('Failed to post comment'); }
+    if(!txt) return;
+    await addDoc(collection(db,'posts',postId,'comments'),{
+      uid:currentUser.uid,
+      name:currentUser.displayName||currentUser.email||'Unknown',
+      text:txt,
+      createdAt:new Date()
+    });
+    card.querySelector(`#cinput-${postId}`).value='';
   };
 
   postsContainer.appendChild(card);
 }
 
-/* ----------------- Load posts (paginated) ----------------- */
-async function loadPosts(initial = false) {
-  if (loading || finished) return;
+/* ----------------- Load Posts ----------------- */
+async function loadPosts(initial=false){
+  if(loading || finished) return;
   loading = true;
-  loadMoreEl.textContent = 'Loading…';
+  let q = query(collection(db,'posts'),orderBy('createdAt','desc'),limit(PAGE_SIZE));
+  if(!initial && lastVisible) q = query(collection(db,'posts'),orderBy('createdAt','desc'),startAfter(lastVisible),limit(PAGE_SIZE));
 
-  try {
-    let q;
-    if (initial || !lastVisible) {
-      q = query(collection(db,'posts'), orderBy('createdAt','desc'), limit(PAGE_SIZE));
-    } else {
-      q = query(collection(db,'posts'), orderBy('createdAt','desc'), startAfter(lastVisible), limit(PAGE_SIZE));
-    }
-
-    const snap = await getDocs(q);
-    if (snap.empty) {
-      if (initial) {
-        emptyState.style.display = 'block';
-        document.getElementById('feed').style.display = 'none';
-      } else {
-        loadMoreEl.textContent = 'No more posts';
-      }
-      finished = true;
-      loading = false;
-      return;
-    }
-
-    // hide empty if posts present
-    emptyState.style.display = 'none';
-    document.getElementById('feed').style.display = 'block';
-
-    // update last visible and render
-    lastVisible = snap.docs[snap.docs.length - 1];
-    snap.docs.forEach(d => renderPostCard(d.id, d.data()));
-    loadMoreEl.textContent = 'Scroll to load more…';
-  } catch (err) {
-    console.error('Load posts error', err);
-    loadMoreEl.textContent = 'Error loading posts';
-  } finally {
-    loading = false;
+  const snap = await getDocs(q);
+  if(snap.empty){
+    finished = true;
+    loadMoreEl.textContent = initial?'No posts yet':'No more posts';
+    loading=false;
+    return;
   }
+
+  lastVisible = snap.docs[snap.docs.length-1];
+  snap.docs.forEach(d=>renderPostCard(d.id,d.data()));
+  loading=false;
 }
 
-/* infinite scroll + click fallback */
-window.addEventListener('scroll', () => {
-  if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 140) {
+window.addEventListener('scroll',()=>{
+  if((window.innerHeight + window.scrollY) >= document.body.offsetHeight-120){
     loadPosts();
   }
 });
-loadMoreEl.addEventListener('click', () => loadPosts());
 
-/* initial load */
 loadPosts(true);
-
 </script>
 </body>
 </html>
