@@ -72,6 +72,13 @@ body {
   box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
 
+.message img {
+  max-width: 200px;
+  border-radius: 10px;
+  margin-top: 5px;
+}
+
+/* Fade animation */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
@@ -102,7 +109,7 @@ body {
   background: white;
 }
 
-#sendBtn {
+#sendBtn, #photoBtn {
   padding: 12px 18px;
   border: none;
   border-radius: 20px;
@@ -113,8 +120,12 @@ body {
   transition: 0.2s;
 }
 
-#sendBtn:hover {
+#sendBtn:hover, #photoBtn:hover {
   background: #5a78d8;
+}
+
+#photoInput {
+  display: none;
 }
 </style>
 </head>
@@ -126,6 +137,8 @@ body {
 <div id="messages"></div>
 
 <div class="input-area">
+  <button id="photoBtn">📷</button>
+  <input type="file" id="photoInput" accept="image/*">
   <input type="text" id="chatInput" placeholder="Type a message..." />
   <button id="sendBtn">Send</button>
 </div>
@@ -157,8 +170,22 @@ const chatWithElem = document.getElementById("chatWith");
 const messagesDiv = document.getElementById("messages");
 const chatInput = document.getElementById("chatInput");
 const sendBtn = document.getElementById("sendBtn");
+const photoBtn = document.getElementById("photoBtn");
+const photoInput = document.getElementById("photoInput");
 
 chatWithElem.textContent = "Chat with " + chatWithName;
+
+/* CLOUDINARY UPLOAD FUNCTION (same as your Create Post page) */
+async function uploadToCloudinary(file){
+  const url = `https://api.cloudinary.com/v1_1/dkq1530ap/upload`;
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', 'bc0uzx6v');
+
+  const res = await fetch(url, { method: "POST", body: formData });
+  const data = await res.json();
+  return data.secure_url;
+}
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
@@ -167,22 +194,31 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   const currentUid = user.uid;
-
   const chatId = [currentUid, chatWithUid].sort().join("_");
-  console.log("Current UID:", currentUid, "Chat with UID:", chatWithUid, "Chat ID:", chatId);
 
   const messagesRef = collection(db, "chats", chatId, "messages");
   const q = query(messagesRef, orderBy("timestamp", "asc"));
 
   onSnapshot(q, (snapshot) => {
-    console.log("Snapshot docs:", snapshot.docs.map(d => d.data()));
     messagesDiv.innerHTML = "";
     snapshot.forEach(doc => {
       const m = doc.data();
       const div = document.createElement("div");
       div.classList.add("message");
       div.classList.add(m.sender === currentUid ? "sent" : "received");
-      div.textContent = m.text;
+
+      if (m.imageUrl) {
+        const img = document.createElement("img");
+        img.src = m.imageUrl;
+        div.appendChild(img);
+      }
+
+      if (m.text) {
+        const textNode = document.createElement("div");
+        textNode.textContent = m.text;
+        div.appendChild(textNode);
+      }
+
       messagesDiv.appendChild(div);
     });
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -191,17 +227,37 @@ onAuthStateChanged(auth, async (user) => {
   sendBtn.addEventListener("click", async () => {
     const text = chatInput.value.trim();
     if (text === "") return;
-    try {
-      await addDoc(messagesRef, {
-        sender: currentUid,
-        receiver: chatWithUid,
-        text: text,
-        timestamp: serverTimestamp()
-      });
-      chatInput.value = "";
-    } catch (err) {
-      console.error("Error sending message:", err);
-    }
+
+    await addDoc(messagesRef, {
+      sender: currentUid,
+      receiver: chatWithUid,
+      text,
+      timestamp: serverTimestamp()
+    });
+
+    chatInput.value = "";
+  });
+
+  /* 📷 Photo button opens hidden input */
+  photoBtn.addEventListener("click", () => {
+    photoInput.click();
+  });
+
+  /* 📤 Upload image and send */
+  photoInput.addEventListener("change", async () => {
+    const file = photoInput.files[0];
+    if (!file) return;
+
+    const imgURL = await uploadToCloudinary(file);
+
+    await addDoc(messagesRef, {
+      sender: currentUid,
+      receiver: chatWithUid,
+      imageUrl: imgURL,
+      timestamp: serverTimestamp()
+    });
+
+    photoInput.value = "";
   });
 });
 </script>
