@@ -4,24 +4,134 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chat</title>
+
 <style>
-body { font-family: sans-serif; padding: 20px; background: #f4f6ff; }
-#messages { max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background: white; margin-bottom: 10px; }
-.message { padding: 6px 10px; margin: 4px 0; border-radius: 8px; }
-.sent { background: #6e8ef5; color: white; text-align: right; }
-.received { background: #e0e0e0; color: black; text-align: left; }
-#chatInput { width: 80%; padding: 8px; }
-#sendBtn { padding: 8px 12px; }
+/* ==== GLOBAL ==== */
+body {
+  font-family: "Inter", sans-serif;
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(135deg, #dfe7ff, #f4f6ff);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==== HEADER ==== */
+#chatWith {
+  margin: 0;
+  padding: 15px;
+  background: #6e8ef5;
+  color: white;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* ==== MESSAGES BOX ==== */
+#messages {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Chat Bubbles */
+.message {
+  max-width: 75%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 15px;
+  line-height: 1.4;
+  word-break: break-word;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+/* Sent Message */
+.sent {
+  align-self: flex-end;
+  background: #6e8ef5;
+  color: white;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* Received Message */
+.received {
+  align-self: flex-start;
+  background: #ffffff;
+  color: #333;
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==== INPUT BAR ==== */
+.input-area {
+  display: flex;
+  gap: 10px;
+  padding: 15px;
+  background: #ffffffee;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 -3px 10px rgba(0,0,0,0.1);
+}
+
+#chatInput {
+  flex: 1;
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  outline: none;
+  font-size: 15px;
+  background: #fafafa;
+}
+
+#chatInput:focus {
+  border-color: #6e8ef5;
+  background: white;
+}
+
+#sendBtn {
+  padding: 12px 18px;
+  border: none;
+  border-radius: 20px;
+  background: #6e8ef5;
+  color: white;
+  font-size: 15px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+#sendBtn:hover {
+  background: #5a78d8;
+}
 </style>
 </head>
+
 <body>
 
 <h2 id="chatWith"></h2>
+
 <div id="messages"></div>
-<input type="text" id="chatInput" placeholder="Type a message..." />
-<button id="sendBtn">Send</button>
+
+<div class="input-area">
+  <input type="text" id="chatInput" placeholder="Type a message..." />
+  <button id="sendBtn">Send</button>
+</div>
 
 <script type="module">
+/* 🔥 DO NOT CHANGE JS — YOUR JS CODE HERE EXACTLY AS PROVIDED */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
@@ -58,14 +168,12 @@ onAuthStateChanged(auth, async (user) => {
 
   const currentUid = user.uid;
 
-  // ✅ Consistent chatId generation
   const chatId = [currentUid, chatWithUid].sort().join("_");
   console.log("Current UID:", currentUid, "Chat with UID:", chatWithUid, "Chat ID:", chatId);
 
   const messagesRef = collection(db, "chats", chatId, "messages");
   const q = query(messagesRef, orderBy("timestamp", "asc"));
 
-  // 🔹 Real-time listener
   onSnapshot(q, (snapshot) => {
     console.log("Snapshot docs:", snapshot.docs.map(d => d.data()));
     messagesDiv.innerHTML = "";
@@ -80,7 +188,6 @@ onAuthStateChanged(auth, async (user) => {
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
 
-  // 🔹 Send message
   sendBtn.addEventListener("click", async () => {
     const text = chatInput.value.trim();
     if (text === "") return;
