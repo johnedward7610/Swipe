@@ -32,11 +32,6 @@ body{font-family:sans-serif;background:#f4f6ff;margin:0;padding:20px;}
 .load-more{padding:12px;text-align:center;color:#555}
 .follow-btn{padding:6px 10px;border-radius:8px;border:none;background:#fff;color:var(--primary);cursor:pointer}
 textarea.comment-input{width:100%;padding:8px;border-radius:8px;border:1px solid #ddd;margin-bottom:6px;resize:none}
-
-/* ===================== TOGGLE BUTTONS ===================== */
-.view-toggle{display:flex;gap:8px;margin-bottom:14px;justify-content:center}
-.view-toggle button{padding:8px 16px;border:none;border-radius:8px;cursor:pointer;background:#ddd;color:#333;font-weight:600}
-.view-toggle button.active{background:var(--primary);color:#fff}
 </style>
 </head>
 <body>
@@ -46,11 +41,6 @@ textarea.comment-input{width:100%;padding:8px;border-radius:8px;border:1px solid
   <button onclick="location.href='user.html'">Users</button>
   <button onclick="location.href='post.html'">Create Post</button>
   <button onclick="location.href='notification.html'">notification</button>
-</div>
-
-<div class="view-toggle">
-  <button id="allPostsBtn" class="active">All Posts</button>
-  <button id="followingPostsBtn">Following</button>
 </div>
 
 <div id="feed">
@@ -64,10 +54,12 @@ textarea.comment-input{width:100%;padding:8px;border-radius:8px;border:1px solid
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { 
-  getAuth, onAuthStateChanged 
+  getAuth, 
+  onAuthStateChanged 
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+
 import { 
-  getFirestore, collection, query, orderBy, limit, startAfter, 
+  getFirestore, collection, query, orderBy, limit, startAfter,
   getDocs, doc, onSnapshot, deleteDoc, setDoc, getDoc, addDoc 
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
@@ -100,68 +92,209 @@ const loadMoreEl = document.getElementById('loadMore');
 const floatingPost = document.getElementById('floatingPost');
 floatingPost.addEventListener('click', ()=>location.href='post.html');
 
-const allPostsBtn = document.getElementById('allPostsBtn');
-const followingPostsBtn = document.getElementById('followingPostsBtn');
-
-let currentView = 'all'; // 'all' or 'following'
-
-allPostsBtn.onclick = () => { currentView='all'; switchToggle(); loadPosts(true); };
-followingPostsBtn.onclick = () => { currentView='following'; switchToggle(); loadPosts(true); };
-
-function switchToggle(){
-  allPostsBtn.classList.toggle('active', currentView==='all');
-  followingPostsBtn.classList.toggle('active', currentView==='following');
-  postsContainer.innerHTML = '';
-  lastVisible = null;
-  finished = false;
-}
-
 const PAGE_SIZE = 6;
 let lastVisible = null;
 let loading = false;
 let finished = false;
 
-// ---------------------------- RENDER POST CARD ----------------------------
-// Use your exact renderPostCard function here without changes
-async function renderPostCard(postId, data){
-  // Copy your full original renderPostCard function exactly here
-  // (all likes, comments, delete, follow, views system preserved)
-  // For brevity, assume it's pasted exactly as in your code above
+const escapeHtml = s => s?.replace(/[&<>]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])) ?? '';
+const formatTime = ts => { try { return ts?.toDate().toLocaleString() || "Just now" } catch { return "Just now" } };
+
+async function getUserProfile(uid){
+  const userDoc = await getDoc(doc(db,'users',uid));
+  return userDoc.exists() ? userDoc.data() : null;
 }
 
-// ---------------------------- LOAD POSTS ----------------------------
+// ==============================
+//   RENDER POST CARD
+// ==============================
+async function renderPostCard(postId, data){
+  const card = document.createElement('div');
+  card.className = 'post-card';
+  card.id = `post-${postId}`;
+
+  const profile = await getUserProfile(data.uid);
+  const displayName = profile?.fullName || profile?.displayName || 'Unknown';
+  const photoURL = profile?.photoURL || '';
+
+  card.innerHTML = `
+    <div class="post-header">
+      <div class="avatar" style="${photoURL?'background-image:url('+photoURL+');background-size:cover;background-position:center':''}">
+        ${photoURL?'':displayName[0].toUpperCase()}
+      </div>
+
+      <div style="flex:1">
+        <div class="post-name" data-uid="${data.uid}">${displayName}</div>
+        <div class="post-time">${formatTime(data.createdAt)}</div>
+      </div>
+
+      ${currentUser?.uid !== data.uid ? `<button class="follow-btn" id="follow-${postId}">Follow</button>` : ""}
+    </div>
+
+    <div class="post-text">${escapeHtml(data.text)}</div>
+    <div class="post-images" id="img-${postId}"></div>
+
+    <div class="actions">
+      <button class="btn like-btn" id="like-${postId}">❤️ Like</button>
+      <span class="likes-count" id="likes-${postId}">0</span>
+
+      <button class="btn comment-btn" id="toggle-${postId}">💬 Comment</button>
+
+      <span class="views-count" id="views-${postId}">0 views</span>
+
+      ${currentUser?.uid === data.uid ? `<button class="btn delete-btn" id="del-${postId}">🗑 Delete</button>` : ""}
+    </div>
+
+    <div class="comments-area" id="carea-${postId}" style="display:none">
+      <textarea id="cinput-${postId}" class="comment-input" placeholder="Write a comment…"></textarea>
+      <button class="btn comment-btn" id="cpost-${postId}">Post</button>
+      <div id="clist-${postId}" class="clist"></div>
+    </div>
+  `;
+
+  const imgBox = card.querySelector(`#img-${postId}`);
+  if(data.mediaUrls?.length){
+    data.mediaUrls.forEach(url=>{
+      if(url.match(/\.(mp4|webm|ogg)$/)){
+        const video = document.createElement('video');
+        video.src = url; video.controls = true;
+        video.style.maxWidth = data.mediaUrls.length===1?'100%':'48%';
+        imgBox.appendChild(video);
+      } else {
+        const img = document.createElement('img');
+        img.src = url;
+        img.style.maxWidth = data.mediaUrls.length===1?'100%':'48%';
+        imgBox.appendChild(img);
+      }
+    });
+  }
+
+  // go to profile
+  card.querySelector('.post-name').onclick = e=>{
+    const uid = e.target.dataset.uid;
+    location.href = `profile.html?uid=${uid}`;
+  };
+
+  // ------------------------------ LIKE SYSTEM ------------------------------
+  const likeBtn = card.querySelector(`#like-${postId}`);
+  likeBtn.onclick = async ()=>{
+    if(!currentUser) return alert('Login first');
+    await setDoc(doc(db,'posts',postId,'likes',currentUser.uid),{likedAt:new Date()});
+  };
+  onSnapshot(collection(db,'posts',postId,'likes'), snap=>{
+    card.querySelector(`#likes-${postId}`).textContent = snap.size;
+  });
+
+  // ------------------------------ DELETE ------------------------------
+  const delBtn = card.querySelector(`#del-${postId}`);
+  if(delBtn){
+    delBtn.onclick = async ()=>{
+      if(!confirm('Delete this post?')) return;
+      await deleteDoc(doc(db,'posts',postId));
+      card.remove();
+    };
+  }
+
+  // ------------------------------ FOLLOW ------------------------------
+  const fbtn = card.querySelector(`#follow-${postId}`);
+  if(fbtn){
+    fbtn.onclick = async ()=>{
+      if(!currentUser) return alert('Login');
+      const follower = doc(db,'users',data.uid,'followers',currentUser.uid);
+      const following = doc(db,'users',currentUser.uid,'following',data.uid);
+
+      const snap = await getDoc(follower);
+      if(snap.exists()){ 
+        await deleteDoc(follower); 
+        await deleteDoc(following); 
+        fbtn.textContent='Follow'; 
+      } else { 
+        await setDoc(follower,{followedAt:new Date()});
+        await setDoc(following,{followedAt:new Date()});
+        fbtn.textContent='Following'; 
+      }
+    };
+    getDoc(doc(db,'users',data.uid,'followers',currentUser?.uid))
+      .then(s=>fbtn.textContent = s.exists()?'Following':'Follow');
+  }
+
+  // ------------------------------ COMMENTS ------------------------------
+  const carea = card.querySelector(`#carea-${postId}`);
+  card.querySelector(`#toggle-${postId}`).onclick = ()=>carea.style.display =
+    carea.style.display==='none' ? 'block':'none';
+
+  const list = card.querySelector(`#clist-${postId}`);
+  onSnapshot(collection(db,'posts',postId,'comments'),snap=>{
+    list.innerHTML='';
+    snap.forEach(c=>{
+      const d = c.data();
+      const div = document.createElement('div');
+      div.className='comment-card';
+      div.innerHTML=`
+        <div style="font-weight:700">${d.name}</div>
+        <div style="font-size:12px;color:#666">${formatTime(d.createdAt)}</div>
+        <div>${escapeHtml(d.text)}</div>`;
+      list.appendChild(div);
+    });
+  });
+
+  card.querySelector(`#cpost-${postId}`).onclick = async ()=>{
+    if(!currentUser) return alert('Login first');
+    const txt = card.querySelector(`#cinput-${postId}`).value.trim();
+    if(!txt) return;
+
+    await addDoc(collection(db,'posts',postId,'comments'),{
+      uid:currentUser.uid,
+      name:currentUser.displayName||currentUser.email||'Unknown',
+      text:txt,
+      createdAt:new Date()
+    });
+    card.querySelector(`#cinput-${postId}`).value='';
+  };
+
+  // ==============================
+  //          VIEW COUNTER
+  // ==============================
+  const viewDocId = currentUser?.uid || deviceID;
+
+  if (!sessionStorage.getItem("viewed-" + postId)) {
+    sessionStorage.setItem("viewed-" + postId, "true");
+
+    await setDoc(doc(db, "posts", postId, "views", viewDocId), {
+      viewedAt: new Date()
+    });
+  }
+
+  onSnapshot(collection(db, "posts", postId, "views"), snap => {
+    card.querySelector(`#views-${postId}`).textContent = snap.size + " views";
+  });
+
+  postsContainer.appendChild(card);
+}
+
+// ==============================
+//          LOAD POSTS
+// ==============================
 async function loadPosts(initial=false){
   if(loading || finished) return;
   loading = true;
 
-  let q = query(collection(db,'posts'), orderBy('createdAt','desc'), limit(PAGE_SIZE));
-  if(!initial && lastVisible){
-    q = query(collection(db,'posts'), orderBy('createdAt','desc'), startAfter(lastVisible), limit(PAGE_SIZE));
-  }
+  let q = query(collection(db,'posts'),orderBy('createdAt','desc'),limit(PAGE_SIZE));
+  if(!initial && lastVisible) 
+    q = query(collection(db,'posts'),orderBy('createdAt','desc'),
+      startAfter(lastVisible),limit(PAGE_SIZE));
 
   const snap = await getDocs(q);
   if(snap.empty){
     finished = true;
     loadMoreEl.textContent = initial?'No posts yet':'No more posts';
-    loading = false;
+    loading=false;
     return;
   }
 
   lastVisible = snap.docs[snap.docs.length-1];
-
-  for(const docSnap of snap.docs){
-    const data = docSnap.data();
-
-    if(currentView==='following' && currentUser){
-      const followingSnap = await getDocs(collection(db,'users',currentUser.uid,'following'));
-      const followingIds = followingSnap.docs.map(d=>d.id);
-      if(!followingIds.includes(data.uid)) continue;
-    }
-
-    await renderPostCard(docSnap.id, data);
-  }
-
-  loading = false;
+  snap.docs.forEach(d=>renderPostCard(d.id,d.data()));
+  loading=false;
 }
 
 window.addEventListener('scroll',()=>{
