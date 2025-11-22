@@ -14,6 +14,8 @@ th { background: #6e8ef5; color: white; text-align: left; }
 tr:hover { background: #e0e0ff; }
 button { padding: 8px 14px; border: none; border-radius: 8px; background: #6e8ef5; color: white; cursor: pointer; }
 button:hover { background: #8ea2ff; }
+a { display: flex; align-items: center; gap: 10px; text-decoration: none; color: black; }
+img { border-radius: 50%; width: 40px; height: 40px; object-fit: cover; }
 #errorBox { color: red; font-weight: bold; margin-top: 20px; }
 </style>
 </head>
@@ -88,9 +90,8 @@ onAuthStateChanged(auth, async (user) => {
 
     allUsers = [];
     usersSnapshot.forEach(docSnap => {
-      const u = docSnap.data();
       if (docSnap.id === user.uid) return; // Skip self
-      allUsers.push({ uid: docSnap.id, ...u });
+      allUsers.push({ uid: docSnap.id, ...docSnap.data() });
     });
 
     renderUsers(allUsers);
@@ -109,14 +110,22 @@ function renderUsers(users) {
   userRows.innerHTML = "";
   users.forEach(u => {
     const tr = document.createElement("tr");
+    const photo = u.photoURL || "https://www.gravatar.com/avatar/?d=mp";
+    const name = u.fullName || "Unknown";
+    const profileLink = `profile.html?uid=${u.uid}`;
     tr.innerHTML = `
-      <td>${u.fullName || "Unknown"}</td>
+      <td>
+        <a href="${profileLink}">
+          <img src="${photo}" alt="profile">
+          <span>${name}</span>
+        </a>
+      </td>
       <td>${u.gender || "—"}</td>
       <td>${u.createdAt?.toDate ? u.createdAt.toDate().toLocaleString() : ""}</td>
       <td><button class="addFriendBtn">Add Friend</button></td>
     `;
     const btn = tr.querySelector(".addFriendBtn");
-    btn.addEventListener("click", () => addFriend(u.uid, u.fullName));
+    btn.addEventListener("click", () => addFriend(u.uid, name));
     userRows.appendChild(tr);
   });
 }
@@ -125,7 +134,6 @@ function renderUsers(users) {
 async function addFriend(friendUid, friendName) {
   try {
     const currentUid = auth.currentUser.uid;
-    // Create a "friend request" document
     await setDoc(doc(db, "friendRequests", `${currentUid}_${friendUid}`), {
       from: currentUid,
       to: friendUid,
