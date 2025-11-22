@@ -3,46 +3,45 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chats</title>
+<title>Messages</title>
 <style>
 body { font-family: Arial, sans-serif; padding: 20px; background: #f4f6ff; }
 h2 { color: #333; }
 #chatList { list-style: none; padding: 0; margin: 0; }
 .chatItem {
-  display: flex; align-items: center; gap: 10px;
-  background: white; padding: 10px; margin-bottom: 10px;
-  border-radius: 8px; cursor: pointer; position: relative;
+  display: flex; align-items: center; gap: 10px; background: white;
+  padding: 10px; margin-bottom: 10px; border-radius: 8px; cursor: pointer;
+  transition: 0.2s; position: relative;
 }
-.chatItem img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
-.chatItem .name { font-weight: bold; flex: 1; }
+.chatItem:hover { background: #e0e0ff; }
+.chatItem img { width:50px; height:50px; border-radius:50%; object-fit:cover; }
+.chatItem .name { font-weight:bold; flex:1; }
 .longPressMenu {
-  position: absolute; top: 60%; right: 10px;
-  background: white; border: 1px solid #ccc;
-  border-radius: 8px; padding: 5px;
-  display: flex; flex-direction: column; gap: 5px; z-index: 100;
+  position: absolute; top:60%; right:10px; background:white; border:1px solid #ccc;
+  border-radius:8px; padding:5px; display:flex; flex-direction:column; gap:5px; z-index:100;
 }
 .longPressMenu button {
-  background: #6e8ef5; color: white; border: none;
-  padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 14px;
+  background: #6e8ef5; color:white; border:none; padding:5px 10px;
+  border-radius:6px; cursor:pointer; font-size:14px;
 }
-.longPressMenu button:hover { background: #5a78d8; }
+.longPressMenu button:hover { background:#5a78d8; }
 </style>
 </head>
 <body>
 
-<h2>Chats</h2>
+<h2>Chats / Friends</h2>
 <ul id="chatList"></ul>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getFirestore, collection, doc, onSnapshot, getDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, collection, doc, getDoc, getDocs, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
   authDomain: "swipe-f90ed.firebaseapp.com",
   projectId: "swipe-f90ed",
-  storageBucket: "swipe-f90ed.firebasestorage.app",
+  storageBucket: "swipe-f90ed.appspot.com",
   messagingSenderId: "360540214416",
   appId: "1:360540214416:web:3e92fe77e5c93283d47415",
   measurementId: "G-4SV32V4N0N"
@@ -51,76 +50,82 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-
 const chatList = document.getElementById("chatList");
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return window.location.href = "index.html";
   const currentUid = user.uid;
 
-  // Listen to your following list (friends)
-  const followingRef = collection(db, "users", currentUid, "following");
-  onSnapshot(followingRef, async (snap) => {
-    chatList.innerHTML = "";
-    for (const docSnap of snap.docs) {
-      const friendUid = docSnap.id;
+  // Load friends (following)
+  const followingSnap = await getDocs(collection(db, "users", currentUid, "following"));
+  chatList.innerHTML = "";
 
-      // Fetch friend info
-      const friendDoc = await getDoc(doc(db, "users", friendUid));
-      const friendData = friendDoc.exists() ? friendDoc.data() : {};
-      const name = friendData.fullName || "Unknown";
-      const photo = friendData.photoURL || "https://www.gravatar.com/avatar/?d=mp";
+  for (const docSnap of followingSnap.docs) {
+    const friendUid = docSnap.id;
 
-      const li = document.createElement("li");
-      li.className = "chatItem";
-      li.innerHTML = `
-        <img src="${photo}" alt="profile">
-        <span class="name">${name}</span>
-      `;
+    // Get friend data
+    const friendDoc = await getDoc(doc(db, "users", friendUid));
+    const friendData = friendDoc.exists() ? friendDoc.data() : {};
+    const name = friendData.fullName || "Unknown";
+    const photo = friendData.photoURL || "https://www.gravatar.com/avatar/?d=mp";
 
-      // Click to open chat
-      li.addEventListener("click", () => {
-        localStorage.setItem("chatWithUid", friendUid);
-        localStorage.setItem("chatWithName", name);
-        window.location.href = "chat.html";
-      });
+    // Check if chat exists between current user & friend
+    const chatId1 = `${currentUid}_${friendUid}`;
+    const chatId2 = `${friendUid}_${currentUid}`;
+    let hasChat = false;
+    const chatRef1 = await getDoc(doc(db, "chats", chatId1));
+    const chatRef2 = await getDoc(doc(db, "chats", chatId2));
+    hasChat = chatRef1.exists() || chatRef2.exists();
 
-      // Long press menu for block/unfriend
-      let pressTimer;
-      li.addEventListener("mousedown", () => { pressTimer = setTimeout(() => showMenu(li, friendUid), 700); });
-      li.addEventListener("mouseup", () => clearTimeout(pressTimer));
-      li.addEventListener("mouseleave", () => clearTimeout(pressTimer));
+    // Render
+    const li = document.createElement("li");
+    li.className = "chatItem" + (hasChat ? " chatting" : "");
+    li.innerHTML = `<img src="${photo}" alt="profile"><span class="name">${name}</span>`;
 
-      chatList.appendChild(li);
-    }
-  });
+    li.addEventListener("click", () => {
+      localStorage.setItem("chatWithUid", friendUid);
+      localStorage.setItem("chatWithName", name);
+      window.location.href = "chat.html";
+    });
+
+    // Long press menu
+    let pressTimer;
+    li.addEventListener("mousedown", () => {
+      pressTimer = setTimeout(() => showMenu(li, friendUid), 700);
+    });
+    li.addEventListener("mouseup", () => clearTimeout(pressTimer));
+    li.addEventListener("mouseleave", () => clearTimeout(pressTimer));
+
+    chatList.appendChild(li);
+  }
 });
 
-function showMenu(li, friendUid) {
+// Show long press menu
+function showMenu(li, otherUid) {
   if (li.querySelector(".longPressMenu")) return;
   const menu = document.createElement("div");
   menu.className = "longPressMenu";
-  menu.innerHTML = `
-    <button id="blockBtn">Block</button>
-    <button id="unfriendBtn">Unfriend</button>
-  `;
+  menu.innerHTML = `<button id="muteBtn">Mute</button><button id="blockBtn">Block</button>`;
   li.appendChild(menu);
 
+  const auth = getAuth();
+  const db = getFirestore();
+
+  menu.querySelector("#muteBtn").addEventListener("click", async () => {
+    await setDoc(doc(db, "users", auth.currentUser.uid, "muted", otherUid), { muted: true });
+    menu.remove();
+    alert("User muted");
+  });
+
   menu.querySelector("#blockBtn").addEventListener("click", async () => {
-    await setDoc(doc(db, "users", auth.currentUser.uid, "blocked", friendUid), { blocked: true });
+    await setDoc(doc(db, "users", auth.currentUser.uid, "blocked", otherUid), { blocked: true });
     menu.remove();
     alert("User blocked");
   });
 
-  menu.querySelector("#unfriendBtn").addEventListener("click", async () => {
-    await deleteDoc(doc(db, "users", auth.currentUser.uid, "following", friendUid));
-    await deleteDoc(doc(db, "users", friendUid, "followers", auth.currentUser.uid));
-    menu.remove();
-    alert("Unfriended");
-  });
-
-  document.addEventListener("click", e => { if (!li.contains(e.target)) menu.remove(); }, { once: true });
+  document.addEventListener("click", e => { if (!li.contains(e.target)) menu.remove(); }, { once:true });
 }
 </script>
+
 </body>
 </html>
