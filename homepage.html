@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Homepage</title>
 
 <style>
 :root{--primary:#6e8ef5;--accent:#ff6e6e}
 body{font-family:sans-serif;background:#f4f6ff;margin:0;padding:20px;}
 .hotbar{display:flex;gap:10px;margin-bottom:14px}
-.hotbar button{padding:10px 16px;border:none;border-radius:10px;background:var(--primary);color:#fff;cursor:pointer}
+.hotbar button{padding:10px 16px;border:none;border-radius:10px;background:var(--primary);color:#fff;cursor:pointer;position:relative}
 #feed{max-width:800px;margin:0 auto}
 .post-card{background:#fff;padding:16px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:16px}
 .post-header{display:flex;align-items:center;gap:12px}
@@ -32,6 +32,18 @@ body{font-family:sans-serif;background:#f4f6ff;margin:0;padding:20px;}
 .load-more{padding:12px;text-align:center;color:#555}
 .follow-btn{padding:6px 10px;border-radius:8px;border:none;background:#fff;color:var(--primary);cursor:pointer}
 textarea.comment-input{width:100%;padding:8px;border-radius:8px;border:1px solid #ddd;margin-bottom:6px;resize:none}
+
+/* RED DOT FOR NOTIFICATIONS */
+#notifDot {
+  position: absolute;
+  top:5px;
+  right:5px;
+  width:10px;
+  height:10px;
+  background:red;
+  border-radius:50%;
+  display:none;
+}
 </style>
 </head>
 <body>
@@ -40,7 +52,10 @@ textarea.comment-input{width:100%;padding:8px;border-radius:8px;border:1px solid
   <button onclick="location.href='profile.html'">My Profile</button>
   <button onclick="location.href='user.html'">Users</button>
   <button onclick="location.href='post.html'">Create Post</button>
-  <button onclick="location.href='notification.html'">notification</button>
+  <button id="notificationBtn" onclick="location.href='notification.html'">
+    notification
+    <span id="notifDot"></span>
+  </button>
 </div>
 
 <div id="feed">
@@ -90,8 +105,47 @@ const deviceID = localStorage.getItem("deviceID");
 const postsContainer = document.getElementById('postsContainer');
 const loadMoreEl = document.getElementById('loadMore');
 const floatingPost = document.getElementById('floatingPost');
+const notifDot = document.getElementById("notifDot");
+
 floatingPost.addEventListener('click', ()=>location.href='post.html');
 
+// ==========================
+// NOTIFICATION RED DOT LOGIC
+// ==========================
+onAuthStateChanged(auth, async (user) => {
+  if (!user) return;
+  const uid = user.uid;
+
+  // Friend requests
+  onSnapshot(collection(db, "friendRequests"), snap => {
+    const hasNewReq = snap.docs.some(doc => {
+      const data = doc.data();
+      return data.to === uid && !data.seen;
+    });
+    notifDot.style.display = hasNewReq ? "inline-block" : "none";
+  });
+
+  // Unread chats
+  const followingRef = collection(db, "users", uid, "following");
+  onSnapshot(followingRef, async snap => {
+    let hasUnread = false;
+    for (const docSnap of snap.docs) {
+      const friendUid = docSnap.id;
+      const chatId = [uid, friendUid].sort().join("_");
+      const messagesRef = collection(db, "chats", chatId, "messages");
+      const msgsSnap = await getDocs(messagesRef);
+      if (msgsSnap.docs.some(m => m.data().uid !== uid && !(m.data().readBy?.includes(uid)))) {
+        hasUnread = true;
+        break;
+      }
+    }
+    if (hasUnread) notifDot.style.display = "inline-block";
+  });
+});
+
+// ==============================
+//          POST LOGIC
+// ==============================
 const PAGE_SIZE = 6;
 let lastVisible = null;
 let loading = false;
@@ -105,9 +159,6 @@ async function getUserProfile(uid){
   return userDoc.exists() ? userDoc.data() : null;
 }
 
-// ==============================
-//   RENDER POST CARD
-// ==============================
 async function renderPostCard(postId, data){
   const card = document.createElement('div');
   card.className = 'post-card';
@@ -169,13 +220,12 @@ async function renderPostCard(postId, data){
     });
   }
 
-  // go to profile
   card.querySelector('.post-name').onclick = e=>{
     const uid = e.target.dataset.uid;
     location.href = `profile.html?uid=${uid}`;
   };
 
-  // ------------------------------ LIKE SYSTEM ------------------------------
+  // LIKE SYSTEM
   const likeBtn = card.querySelector(`#like-${postId}`);
   likeBtn.onclick = async ()=>{
     if(!currentUser) return alert('Login first');
@@ -185,7 +235,7 @@ async function renderPostCard(postId, data){
     card.querySelector(`#likes-${postId}`).textContent = snap.size;
   });
 
-  // ------------------------------ DELETE ------------------------------
+  // DELETE
   const delBtn = card.querySelector(`#del-${postId}`);
   if(delBtn){
     delBtn.onclick = async ()=>{
@@ -195,7 +245,7 @@ async function renderPostCard(postId, data){
     };
   }
 
-  // ------------------------------ FOLLOW ------------------------------
+  // FOLLOW
   const fbtn = card.querySelector(`#follow-${postId}`);
   if(fbtn){
     fbtn.onclick = async ()=>{
@@ -218,7 +268,7 @@ async function renderPostCard(postId, data){
       .then(s=>fbtn.textContent = s.exists()?'Following':'Follow');
   }
 
-  // ------------------------------ COMMENTS ------------------------------
+  // COMMENTS
   const carea = card.querySelector(`#carea-${postId}`);
   card.querySelector(`#toggle-${postId}`).onclick = ()=>carea.style.display =
     carea.style.display==='none' ? 'block':'none';
@@ -252,19 +302,14 @@ async function renderPostCard(postId, data){
     card.querySelector(`#cinput-${postId}`).value='';
   };
 
-  // ==============================
-  //          VIEW COUNTER
-  // ==============================
+  // VIEW COUNTER
   const viewDocId = currentUser?.uid || deviceID;
-
   if (!sessionStorage.getItem("viewed-" + postId)) {
     sessionStorage.setItem("viewed-" + postId, "true");
-
     await setDoc(doc(db, "posts", postId, "views", viewDocId), {
       viewedAt: new Date()
     });
   }
-
   onSnapshot(collection(db, "posts", postId, "views"), snap => {
     card.querySelector(`#views-${postId}`).textContent = snap.size + " views";
   });
@@ -272,9 +317,6 @@ async function renderPostCard(postId, data){
   postsContainer.appendChild(card);
 }
 
-// ==============================
-//          LOAD POSTS
-// ==============================
 async function loadPosts(initial=false){
   if(loading || finished) return;
   loading = true;
