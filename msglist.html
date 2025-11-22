@@ -5,28 +5,94 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Messages</title>
 <style>
-body { font-family: Arial, sans-serif; padding: 20px; background: #f4f6ff; }
-h2 { color: #333; }
-.chatRow { display: flex; align-items: center; gap: 10px; padding: 10px; background: white; margin-bottom: 8px; border-radius: 8px; cursor: pointer; transition: 0.2s; }
-.chatRow:hover { background: #e0e0ff; }
-.chatRow img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
-.chatRow span { font-size: 16px; font-weight: 500; }
-.errorBox { color: red; font-weight: bold; margin-top: 20px; }
+body {
+  font-family: Arial, sans-serif;
+  padding: 20px;
+  background: #f4f6ff;
+}
+
+h2 {
+  color: #333;
+}
+
+#chatList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.chatItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: white;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.2s;
+  position: relative;
+}
+
+.chatItem:hover {
+  background: #e0e0ff;
+}
+
+.chatItem img {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.chatItem .name {
+  font-weight: bold;
+  flex: 1;
+}
+
+.chatting {
+  background-color: #fff7d6 !important;
+}
+
+.longPressMenu {
+  position: absolute;
+  top: 60%;
+  right: 10px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  z-index: 100;
+}
+
+.longPressMenu button {
+  background: #6e8ef5;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.longPressMenu button:hover {
+  background: #5a78d8;
+}
 </style>
 </head>
 <body>
 
-<h2>Messages</h2>
-<div id="messagesList"></div>
-<p id="loading">Loading chats...</p>
-<p id="errorBox" class="errorBox"></p>
+<h2>Chats</h2>
+<ul id="chatList"></ul>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, where, doc, setDoc, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { getFirestore, collection, query, where, getDocs, orderBy, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
-// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
   authDomain: "swipe-f90ed.firebaseapp.com",
@@ -38,90 +104,96 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
 const auth = getAuth(app);
+const db = getFirestore(app);
 
-const messagesList = document.getElementById("messagesList");
-const loadingText = document.getElementById("loading");
-const errorBox = document.getElementById("errorBox");
+const chatList = document.getElementById("chatList");
 
 onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    window.location.href = "index.html";
-    return;
-  }
+  if (!user) return window.location.href = "index.html";
 
-  try {
-    const uid = user.uid;
-    const chatsQuery = query(collection(db, "chats"), where("participants", "array-contains", uid));
-    const chatsSnapshot = await getDocs(chatsQuery);
+  const currentUid = user.uid;
 
-    messagesList.innerHTML = "";
+  // Listen to all chats involving current user
+  const chatsRef = collection(db, "chats");
+  onSnapshot(chatsRef, async (snapshot) => {
+    chatList.innerHTML = "";
+    const chatItems = [];
 
-    if (chatsSnapshot.empty) {
-      loadingText.innerText = "No chats yet.";
-      return;
+    for (let chatDoc of snapshot.docs) {
+      const chatData = chatDoc.data();
+      if (!chatData.participants.includes(currentUid)) continue;
+
+      const otherUid = chatData.participants.find(uid => uid !== currentUid);
+
+      // Get other user info
+      const userDoc = await getDocs(query(collection(db, "users"), where("__name__", "==", otherUid)));
+      const userData = userDoc.docs[0]?.data() || {};
+      const name = userData.fullName || "Unknown";
+      const photo = userData.photoURL || "https://www.gravatar.com/avatar/?d=mp";
+
+      chatItems.push({ uid: otherUid, name, photo, chatId: chatDoc.id });
     }
 
-    for (const chatDoc of chatsSnapshot.docs) {
-      const participants = chatDoc.data().participants.filter(p => p !== uid);
-      const otherUid = participants[0]; // 1-to-1 chat
-      const row = await createChatRow(chatDoc.id, otherUid);
-      messagesList.appendChild(row);
-    }
+    // Render chat items
+    chatItems.forEach(item => {
+      const li = document.createElement("li");
+      li.className = "chatItem";
+      li.innerHTML = `
+        <img src="${item.photo}" alt="profile">
+        <span class="name">${item.name}</span>
+      `;
 
-    loadingText.style.display = "none";
+      // Navigate to chat on click
+      li.addEventListener("click", () => {
+        localStorage.setItem("chatWithUid", item.uid);
+        localStorage.setItem("chatWithName", item.name);
+        window.location.href = "chat.html";
+      });
 
-  } catch (err) {
-    console.error(err);
-    loadingText.style.display = "none";
-    errorBox.innerText = "Error loading chats: " + err.message;
-  }
+      // Long press menu for mute/block
+      let pressTimer;
+      li.addEventListener("mousedown", () => {
+        pressTimer = setTimeout(() => showMenu(li, item.uid), 700);
+      });
+      li.addEventListener("mouseup", () => clearTimeout(pressTimer));
+      li.addEventListener("mouseleave", () => clearTimeout(pressTimer));
+
+      chatList.appendChild(li);
+    });
+  });
 });
 
-async function createChatRow(chatId, otherUid) {
-  const userDoc = await getDoc(doc(db, "users", otherUid));
-  const userData = userDoc.exists() ? userDoc.data() : { fullName: "Unknown", photoURL: "https://www.gravatar.com/avatar/?d=mp" };
-
-  const row = document.createElement("div");
-  row.classList.add("chatRow");
-  row.innerHTML = `
-    <img src="${userData.photoURL || 'https://www.gravatar.com/avatar/?d=mp'}" />
-    <span>${userData.fullName || 'Unknown'}</span>
+// Show long press menu
+function showMenu(li, otherUid) {
+  if (li.querySelector(".longPressMenu")) return; // Already open
+  const menu = document.createElement("div");
+  menu.className = "longPressMenu";
+  menu.innerHTML = `
+    <button id="muteBtn">Mute</button>
+    <button id="blockBtn">Block</button>
   `;
 
-  // click to open chat
-  row.addEventListener("click", () => {
-    localStorage.setItem("chatWithUid", otherUid);
-    localStorage.setItem("chatWithName", userData.fullName || "Unknown");
-    window.location.href = "chat.html";
-  });
+  li.appendChild(menu);
 
-  // long press for block/mute
-  let timer;
-  row.addEventListener("mousedown", () => {
-    timer = setTimeout(() => showBlockMuteOptions(otherUid), 700);
-  });
-  row.addEventListener("mouseup", () => clearTimeout(timer));
-  row.addEventListener("mouseleave", () => clearTimeout(timer));
-
-  return row;
-}
-
-function showBlockMuteOptions(targetUid) {
-  const action = prompt("Type 'block' to block or 'mute' to mute this user");
-  const uid = auth.currentUser.uid;
-
-  if (!action) return;
-
-  if (action.toLowerCase() === "block") {
-    setDoc(doc(db, `users/${uid}/blocked/${targetUid}`), { blockedAt: serverTimestamp() });
-    alert("User blocked");
-  } else if (action.toLowerCase() === "mute") {
-    setDoc(doc(db, `users/${uid}/muted/${targetUid}`), { mutedAt: serverTimestamp() });
+  menu.querySelector("#muteBtn").addEventListener("click", async () => {
+    await setDoc(doc(db, "users", auth.currentUser.uid, "muted", otherUid), { muted: true });
+    menu.remove();
     alert("User muted");
-  }
+  });
+
+  menu.querySelector("#blockBtn").addEventListener("click", async () => {
+    await setDoc(doc(db, "users", auth.currentUser.uid, "blocked", otherUid), { blocked: true });
+    menu.remove();
+    alert("User blocked");
+  });
+
+  // Close menu if clicked elsewhere
+  document.addEventListener("click", e => {
+    if (!li.contains(e.target)) menu.remove();
+  }, { once: true });
 }
 </script>
+
 </body>
 </html>
