@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messages</title>
+<style>
+body { font-family: Arial, sans-serif; padding: 20px; background: #f4f6ff; }
+h2 { color: #333; margin-bottom: 20px; }
+table { width: 100%; border-collapse: collapse; background: white; }
+th, td { padding: 12px; border-bottom: 1px solid #ccc; }
+th { background: #6e8ef5; color: white; text-align: left; }
+tr:hover { background: #e0e0ff; cursor: pointer; }
+img { border-radius: 50%; width: 50px; height: 50px; object-fit: cover; margin-right: 10px; }
+a { text-decoration: none; color: black; display: flex; align-items: center; }
+.muted { opacity: 0.5; }
+.blocked { background-color: #ffdddd; }
+button { padding: 6px 12px; border: none; border-radius: 6px; background: #6e8ef5; color: white; cursor: pointer; margin-left: 5px; }
+button:hover { background: #8ea2ff; }
+#errorBox { color: red; font-weight: bold; margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<h2>Messages</h2>
+<button id="logoutBtn">Log Out</button>
+<p id="loading">Loading chats...</p>
+<p id="errorBox"></p>
+
+<table id="chatTable" style="display:none;">
+  <thead>
+    <tr>
+      <th>Friend</th>
+      <th>Last Message</th>
+      <th>Time</th>
+    </tr>
+  </thead>
+  <tbody id="chatRows"></tbody>
+</table>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getFirestore, collection, getDocs, query, where, orderBy, limit, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging.js";
+
+// 🔹 Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
+  authDomain: "swipe-f90ed.firebaseapp.com",
+  projectId: "swipe-f90ed",
+  storageBucket: "swipe-f90ed.firebasestorage.app",
+  messagingSenderId: "360540214416",
+  appId: "1:360540214416:web:3e92fe77e5c93283d47415",
+  measurementId: "G-4SV32V4N0N"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+const messaging = getMessaging(app);
+
+const loadingText = document.getElementById("loading");
+const errorBox = document.getElementById("errorBox");
+const chatTable = document.getElementById("chatTable");
+const chatRows = document.getElementById("chatRows");
+const logoutBtn = document.getElementById("logoutBtn");
+
+// 🔹 Logout
+logoutBtn.addEventListener("click", async () => {
+  await signOut(auth);
+  window.location.href = "index.html";
+});
+
+// 🔹 Request FCM Permission
+async function requestFCMPermission() {
+  try {
+    await Notification.requestPermission();
+    const token = await getToken(messaging, { 
+      vapidKey: "BLvAF9-7nR6TCYapQqOUmZHZRLz7m7MjnEPw7I4TUZqFG_98oA41mR-9kN07c4R34_y6mXXvpmlwozFK4ISwfLo" 
+    });
+    if(token) {
+      await setDoc(doc(db, "users", auth.currentUser.uid, "fcmTokens", token), { token });
+      console.log("FCM token saved:", token);
+    }
+  } catch(err) {
+    console.error("FCM Permission error:", err);
+  }
+}
+
+// 🔹 Listen to messages while app is open
+onMessage(messaging, payload => {
+  const data = payload.data;
+  alert(`New message from ${data.fromName || "Someone"}: ${data.text}`);
+});
+
+// 🔹 Load chats
+onAuthStateChanged(auth, async (user) => {
+  if (!user) { window.location.href = "index.html"; return; }
+  const uid = user.uid;
+
+  requestFCMPermission();
+
+  try {
+    const chatsSnapshot = await getDocs(collection(db, "chats"));
+
+    const chatsMap = {}; // otherUid -> last message
+    for(const chatDoc of chatsSnapshot.docs){
+      const chatId = chatDoc.id;
+      if(!chatId.includes(uid)) continue;
+
+      const messagesRef = collection(db, "chats", chatId, "messages");
+      const lastMsgQuery = query(messagesRef, orderBy("timestamp","desc"), limit(1));
+      const lastMsgSnap = await getDocs(lastMsgQuery);
+      if(lastMsgSnap.empty) continue;
+      const lastMsg = lastMsgSnap.docs[0].data();
+      const otherUid = chatId.split("_").find(id => id!==uid);
+      chatsMap[otherUid] = lastMsg;
+    }
+
+    // Fetch user info
+    const otherUids = Object.keys(chatsMap);
+    const usersMap = {};
+    if(otherUids.length>0){
+      const usersQuery = query(collection(db,"users"), where("__name__","in",otherUids));
+      const usersSnapshot = await getDocs(usersQuery);
+      usersSnapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        usersMap[docSnap.id] = {
+          name: data.fullName || "Unknown",
+          photoURL: data.photoURL || "https://www.gravatar.com/avatar/?d=mp"
+        };
+      });
+    }
+
+    chatRows.innerHTML="";
+    Object.entries(chatsMap).forEach(([otherUid, msg])=>{
+      const userInfo = usersMap[otherUid] || { name:"Unknown", photoURL:"https://www.gravatar.com/avatar/?d=mp" };
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><a href="profile.html?uid=${otherUid}"><img src="${userInfo.photoURL}"><span>${userInfo.name}</span></a></td>
+        <td>${msg.text||""}</td>
+        <td>${msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleString() : ""}</td>
+      `;
+
+      // click to open chat
+      tr.addEventListener("click",()=>{
+        localStorage.setItem("chatWithUid", otherUid);
+        localStorage.setItem("chatWithName", userInfo.name);
+        window.location.href="chat.html";
+      });
+
+      // long press to mute/block
+      let pressTimer;
+      tr.addEventListener("mousedown",()=>{
+        pressTimer = setTimeout(async ()=>{
+          const action = prompt("Type 'mute' to mute or 'block' to block this user:");
+          if(action==="mute"){
+            await setDoc(doc(db,"users",uid,"muted",otherUid),{muted:true});
+            tr.classList.add("muted");
+            alert(`${userInfo.name} muted.`);
+          } else if(action==="block"){
+            await setDoc(doc(db,"users",uid,"blocked",otherUid),{blocked:true});
+            tr.classList.add("blocked");
+            alert(`${userInfo.name} blocked.`);
+          }
+        },800);
+      });
+      tr.addEventListener("mouseup",()=>clearTimeout(pressTimer));
+      tr.addEventListener("mouseleave",()=>clearTimeout(pressTimer));
+
+      chatRows.appendChild(tr);
+    });
+
+    chatTable.style.display="table";
+    loadingText.style.display="none";
+
+  } catch(err){
+    loadingText.style.display="none";
+    errorBox.innerText="ERROR: "+err.message;
+    console.error(err);
+  }
+});
+</script>
+</body>
+</html>
