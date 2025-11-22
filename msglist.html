@@ -40,11 +40,9 @@ button:hover { background: #8ea2ff; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, where, orderBy, limit, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging.js";
 
-// 🔹 Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
   authDomain: "swipe-f90ed.firebaseapp.com",
@@ -58,111 +56,79 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
-const messaging = getMessaging(app);
 
 const loadingText = document.getElementById("loading");
-const errorBox = document.getElementById("errorBox");
-const chatTable = document.getElementById("chatTable");
 const chatRows = document.getElementById("chatRows");
+const chatTable = document.getElementById("chatTable");
 const logoutBtn = document.getElementById("logoutBtn");
+const errorBox = document.getElementById("errorBox");
 
-// 🔹 Logout
+// Logout
 logoutBtn.addEventListener("click", async () => {
   await signOut(auth);
   window.location.href = "index.html";
 });
 
-// 🔹 Request FCM Permission
-async function requestFCMPermission() {
-  try {
-    await Notification.requestPermission();
-    const token = await getToken(messaging, { 
-      vapidKey: "BLvAF9-7nR6TCYapQqOUmZHZRLz7m7MjnEPw7I4TUZqFG_98oA41mR-9kN07c4R34_y6mXXvpmlwozFK4ISwfLo" 
-    });
-    if(token) {
-      await setDoc(doc(db, "users", auth.currentUser.uid, "fcmTokens", token), { token });
-      console.log("FCM token saved:", token);
-    }
-  } catch(err) {
-    console.error("FCM Permission error:", err);
-  }
-}
-
-// 🔹 Listen to messages while app is open
-onMessage(messaging, payload => {
-  const data = payload.data;
-  alert(`New message from ${data.fromName || "Someone"}: ${data.text}`);
-});
-
-// 🔹 Load chats
+// Load chats
 onAuthStateChanged(auth, async (user) => {
-  if (!user) { window.location.href = "index.html"; return; }
+  if(!user){ window.location.href="index.html"; return; }
   const uid = user.uid;
 
-  requestFCMPermission();
-
   try {
-    const chatsSnapshot = await getDocs(collection(db, "chats"));
+    const chatsSnap = await getDocs(collection(db,"users",uid,"chats"));
+    chatRows.innerHTML="";
+    const otherUids = [];
 
-    const chatsMap = {}; // otherUid -> last message
-    for(const chatDoc of chatsSnapshot.docs){
-      const chatId = chatDoc.id;
-      if(!chatId.includes(uid)) continue;
-
-      const messagesRef = collection(db, "chats", chatId, "messages");
-      const lastMsgQuery = query(messagesRef, orderBy("timestamp","desc"), limit(1));
-      const lastMsgSnap = await getDocs(lastMsgQuery);
-      if(lastMsgSnap.empty) continue;
-      const lastMsg = lastMsgSnap.docs[0].data();
-      const otherUid = chatId.split("_").find(id => id!==uid);
-      chatsMap[otherUid] = lastMsg;
-    }
+    // Collect other UIDs
+    chatsSnap.forEach(docSnap=>{
+      const data = docSnap.data();
+      otherUids.push(data.otherUid);
+    });
 
     // Fetch user info
-    const otherUids = Object.keys(chatsMap);
     const usersMap = {};
     if(otherUids.length>0){
-      const usersQuery = query(collection(db,"users"), where("__name__","in",otherUids));
-      const usersSnapshot = await getDocs(usersQuery);
-      usersSnapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        usersMap[docSnap.id] = {
-          name: data.fullName || "Unknown",
-          photoURL: data.photoURL || "https://www.gravatar.com/avatar/?d=mp"
-        };
+      const usersSnap = await getDocs(collection(db,"users"));
+      usersSnap.forEach(docSnap=>{
+        if(otherUids.includes(docSnap.id)){
+          const d = docSnap.data();
+          usersMap[docSnap.id]={name:d.fullName||"Unknown", photoURL:d.photoURL||"https://www.gravatar.com/avatar/?d=mp"};
+        }
       });
     }
 
-    chatRows.innerHTML="";
-    Object.entries(chatsMap).forEach(([otherUid, msg])=>{
-      const userInfo = usersMap[otherUid] || { name:"Unknown", photoURL:"https://www.gravatar.com/avatar/?d=mp" };
+    // Render rows
+    chatsSnap.forEach(docSnap=>{
+      const data = docSnap.data();
+      const otherUid = data.otherUid;
+      const info = usersMap[otherUid]||{name:"Unknown", photoURL:"https://www.gravatar.com/avatar/?d=mp"};
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td><a href="profile.html?uid=${otherUid}"><img src="${userInfo.photoURL}"><span>${userInfo.name}</span></a></td>
-        <td>${msg.text||""}</td>
-        <td>${msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleString() : ""}</td>
+        <td><a href="profile.html?uid=${otherUid}"><img src="${info.photoURL}"><span>${info.name}</span></a></td>
+        <td>${data.lastMessage||""}</td>
+        <td>${data.timestamp?.toDate ? data.timestamp.toDate().toLocaleString():""}</td>
       `;
 
-      // click to open chat
+      // Click to chat
       tr.addEventListener("click",()=>{
         localStorage.setItem("chatWithUid", otherUid);
-        localStorage.setItem("chatWithName", userInfo.name);
+        localStorage.setItem("chatWithName", info.name);
         window.location.href="chat.html";
       });
 
-      // long press to mute/block
+      // Long press to mute/block
       let pressTimer;
       tr.addEventListener("mousedown",()=>{
-        pressTimer = setTimeout(async ()=>{
-          const action = prompt("Type 'mute' to mute or 'block' to block this user:");
+        pressTimer=setTimeout(async ()=>{
+          const action=prompt("Type 'mute' to mute or 'block' to block this user:");
           if(action==="mute"){
             await setDoc(doc(db,"users",uid,"muted",otherUid),{muted:true});
             tr.classList.add("muted");
-            alert(`${userInfo.name} muted.`);
+            alert(`${info.name} muted.`);
           } else if(action==="block"){
             await setDoc(doc(db,"users",uid,"blocked",otherUid),{blocked:true});
             tr.classList.add("blocked");
-            alert(`${userInfo.name} blocked.`);
+            alert(`${info.name} blocked.`);
           }
         },800);
       });
