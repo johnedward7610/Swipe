@@ -6,19 +6,23 @@
 <title>Notifications</title>
 <style>
 body { font-family: Arial, sans-serif; padding: 20px; background: #f4f6ff; }
-h2 { color: #333; }
+h2, h3 { color: #333; }
 table { width: 100%; border-collapse: collapse; background: white; margin-bottom: 20px; }
 th, td { padding: 12px; border-bottom: 1px solid #ccc; }
 th { background: #6e8ef5; color: white; text-align: left; }
 tr:hover { background: #e0e0ff; }
+.newNotification { background-color: #fff3c4 !important; }
 button { padding: 8px 14px; border: none; border-radius: 8px; background: #6e8ef5; color: white; cursor: pointer; margin-right: 5px; }
 button:hover { background: #8ea2ff; }
+a { text-decoration: none; color: black; display: flex; align-items: center; gap: 10px; }
+img { border-radius: 50%; width: 40px; height: 40px; object-fit: cover; }
 #errorBox { color: red; font-weight: bold; margin-top: 20px; }
+.notificationBadge { background: red; color: white; border-radius: 50%; padding: 2px 8px; font-size: 12px; margin-left: 5px; }
 </style>
 </head>
 <body>
 
-<h2>Notifications</h2>
+<h2>Notifications <span id="friendRequestBadge" style="display:none;" class="notificationBadge">0</span></h2>
 <button id="logoutBtn">Log Out</button>
 <p id="loading">Loading notifications...</p>
 <p id="errorBox"></p>
@@ -47,10 +51,11 @@ button:hover { background: #8ea2ff; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getFirestore, collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, collection, query, where, getDocs, doc, updateDoc, serverTimestamp, documentId, onSnapshot } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging.js";
 
-// 🔹 Firebase config
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
   authDomain: "swipe-f90ed.firebaseapp.com",
@@ -64,77 +69,135 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const messaging = getMessaging(app);
 
 const loadingText = document.getElementById("loading");
 const errorBox = document.getElementById("errorBox");
 const logoutBtn = document.getElementById("logoutBtn");
-
 const friendRequestTable = document.getElementById("friendRequestTable");
 const friendRequestRows = document.getElementById("friendRequestRows");
-
 const acceptedTable = document.getElementById("acceptedTable");
 const acceptedRows = document.getElementById("acceptedRows");
+const friendRequestBadge = document.getElementById("friendRequestBadge");
 
-// 🔹 Logout
+// Logout
 logoutBtn.addEventListener("click", async () => {
   await signOut(auth);
   window.location.href = "index.html";
 });
 
-// 🔹 Load notifications
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    window.location.href = "index.html";
-    return;
+// Request notification permission & save FCM token
+async function setupFCM(user) {
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission === "granted") {
+      const token = await getToken(messaging, { vapidKey: "BLvAF9-7nR6TCYapQqOUmZHZRLz7m7MjnEPw7I4TUZqFG_98oA41mR-9kN07c4R34_y6mXXvpmlwozFK4ISwfLo" });
+      if (token) {
+        await updateDoc(doc(db, "users", user.uid), { fcmToken: token });
+      }
+    }
+  } catch (err) {
+    console.error("FCM error:", err);
   }
+}
+
+// Show notification while page is open
+onMessage(messaging, payload => {
+  const { title, body, icon } = payload.notification;
+  new Notification(title, { body, icon: icon || "https://www.gravatar.com/avatar/?d=mp" });
+  friendRequestTable.style.border = "2px solid #ffcc00"; // Highlight table
+});
+
+// Load notifications in real-time
+onAuthStateChanged(auth, async user => {
+  if (!user) return window.location.href = "index.html";
+  await setupFCM(user);
+  const uid = user.uid;
 
   try {
-    const uid = user.uid;
+    // Real-time friend requests
+    const reqCol = collection(db, "friendRequests");
+    const reqQuery = query(reqCol, where("to", "==", uid), where("status", "==", "pending"));
+    onSnapshot(reqQuery, async snapshot => {
+      friendRequestRows.innerHTML = "";
+      const newCount = snapshot.size;
+      const fromUids = snapshot.docs.map(docSnap => docSnap.data().from);
+      const uniqueFromUids = [...new Set(fromUids)];
+      const usersMap = {};
 
-    // 🔹 Incoming friend requests
-    const requestQuery = query(collection(db, "friendRequests"), where("to", "==", uid), where("status", "==", "pending"));
-    const requestSnapshot = await getDocs(requestQuery);
-    friendRequestRows.innerHTML = "";
+      if (uniqueFromUids.length > 0) {
+        const usersQuery = query(collection(db, "users"), where(documentId(), "in", uniqueFromUids));
+        const usersSnap = await getDocs(usersQuery);
+        usersSnap.forEach(d => usersMap[d.id] = d.data());
+      }
 
-    if (!requestSnapshot.empty) {
-      requestSnapshot.forEach(docSnap => {
+      snapshot.forEach(docSnap => {
         const data = docSnap.data();
+        const fromData = usersMap[data.from] || { name: data.from, photoURL: "https://www.gravatar.com/avatar/?d=mp" };
         const tr = document.createElement("tr");
+        tr.classList.add("newNotification");
         tr.innerHTML = `
-          <td>${data.fromName || data.from}</td>
-          <td>
-            <button class="acceptBtn">Accept</button>
-            <button class="declineBtn">Decline</button>
-          </td>
+          <td><a href="profile.html?uid=${data.from}"><img src="${fromData.photoURL}" alt="profile"><span>${fromData.name}</span></a></td>
+          <td><button class="acceptBtn">Accept</button><button class="declineBtn">Decline</button></td>
         `;
         const acceptBtn = tr.querySelector(".acceptBtn");
         const declineBtn = tr.querySelector(".declineBtn");
 
         acceptBtn.addEventListener("click", async () => {
-          await updateDoc(doc(db, "friendRequests", docSnap.id), {
-            status: "accepted",
-            acceptedAt: serverTimestamp()
-          });
-          alert("Friend request accepted!");
+          await updateDoc(doc(db, "friendRequests", docSnap.id), { status: "accepted", acceptedAt: serverTimestamp() });
           tr.remove();
-          loadAccepted(uid); // Refresh accepted list
+          loadAccepted(uid);
         });
-
         declineBtn.addEventListener("click", async () => {
           await updateDoc(doc(db, "friendRequests", docSnap.id), { status: "declined" });
-          alert("Friend request declined.");
           tr.remove();
         });
 
         friendRequestRows.appendChild(tr);
       });
-      friendRequestTable.style.display = "table";
-    }
 
-    // 🔹 Accepted requests / friends
-    loadAccepted(uid);
+      friendRequestTable.style.display = snapshot.empty ? "none" : "table";
+      if (newCount > 0) {
+        friendRequestBadge.style.display = "inline";
+        friendRequestBadge.innerText = newCount;
+      } else {
+        friendRequestBadge.style.display = "none";
+      }
+    });
 
-    loadingText.style.display = "none";
+    // Real-time accepted friends
+    const acceptedQuery = query(collection(db, "friendRequests"), where("to", "==", uid), where("status", "==", "accepted"));
+    onSnapshot(acceptedQuery, async snapshot => {
+      acceptedRows.innerHTML = "";
+      const friendUids = snapshot.docs.map(docSnap => docSnap.data().from);
+      const uniqueFriendUids = [...new Set(friendUids)];
+      const usersMap = {};
+
+      if (uniqueFriendUids.length > 0) {
+        const usersQuery = query(collection(db, "users"), where(documentId(), "in", uniqueFriendUids));
+        const usersSnap = await getDocs(usersQuery);
+        usersSnap.forEach(d => usersMap[d.id] = d.data());
+      }
+
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const fromData = usersMap[data.from] || { name: data.from, photoURL: "https://www.gravatar.com/avatar/?d=mp" };
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><a href="profile.html?uid=${data.from}"><img src="${fromData.photoURL}" alt="profile"><span>${fromData.name}</span></a></td>
+          <td><button class="chatBtn">Chat</button></td>
+        `;
+        const chatBtn = tr.querySelector(".chatBtn");
+        chatBtn.addEventListener("click", () => {
+          localStorage.setItem("chatWithUid", data.from);
+          localStorage.setItem("chatWithName", fromData.name);
+          window.location.href = "chat.html";
+        });
+        acceptedRows.appendChild(tr);
+      });
+      acceptedTable.style.display = snapshot.empty ? "none" : "table";
+      loadingText.style.display = "none";
+    });
 
   } catch (err) {
     loadingText.style.display = "none";
@@ -142,31 +205,6 @@ onAuthStateChanged(auth, async (user) => {
     console.error(err);
   }
 });
-
-// 🔹 Load accepted friends
-async function loadAccepted(uid) {
-  const acceptedQuery = query(collection(db, "friendRequests"), 
-                              where("status", "==", "accepted"), 
-                              where("to", "==", uid));
-  const snapshot = await getDocs(acceptedQuery);
-  acceptedRows.innerHTML = "";
-  snapshot.forEach(docSnap => {
-    const data = docSnap.data();
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${data.fromName || data.from}</td>
-      <td><button class="chatBtn">Chat</button></td>
-    `;
-    const chatBtn = tr.querySelector(".chatBtn");
-    chatBtn.addEventListener("click", () => {
-      localStorage.setItem("chatWithUid", data.from);
-      localStorage.setItem("chatWithName", data.fromName || data.from);
-      window.location.href = "chat.html";
-    });
-    acceptedRows.appendChild(tr);
-  });
-  acceptedTable.style.display = snapshot.empty ? "none" : "table";
-}
 </script>
 </body>
 </html>
