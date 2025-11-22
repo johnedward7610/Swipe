@@ -26,6 +26,18 @@ h2 { color: #333; }
   padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 14px;
 }
 .longPressMenu button:hover { background: #5a78d8; }
+
+/* Red notification dot */
+.unreadDot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: red;
+  display: none;
+}
 </style>
 </head>
 <body>
@@ -36,7 +48,7 @@ h2 { color: #333; }
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getFirestore, collection, doc, onSnapshot, getDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, collection, doc, onSnapshot, getDoc, deleteDoc, setDoc, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
@@ -58,14 +70,12 @@ onAuthStateChanged(auth, async (user) => {
   if (!user) return window.location.href = "index.html";
   const currentUid = user.uid;
 
-  // Listen to your following list (friends)
   const followingRef = collection(db, "users", currentUid, "following");
   onSnapshot(followingRef, async (snap) => {
     chatList.innerHTML = "";
     for (const docSnap of snap.docs) {
       const friendUid = docSnap.id;
 
-      // Fetch friend info
       const friendDoc = await getDoc(doc(db, "users", friendUid));
       const friendData = friendDoc.exists() ? friendDoc.data() : {};
       const name = friendData.fullName || "Unknown";
@@ -76,22 +86,40 @@ onAuthStateChanged(auth, async (user) => {
       li.innerHTML = `
         <img src="${photo}" alt="profile">
         <span class="name">${name}</span>
+        <span class="unreadDot"></span>
       `;
+
+      const unreadDot = li.querySelector(".unreadDot");
 
       // Click to open chat
       li.addEventListener("click", () => {
         localStorage.setItem("chatWithUid", friendUid);
         localStorage.setItem("chatWithName", name);
+        unreadDot.style.display = "none"; // Hide dot when opened
         window.location.href = "chat.html";
       });
 
-      // Long press menu for block/unfriend
+      // Long press menu
       let pressTimer;
       li.addEventListener("mousedown", () => { pressTimer = setTimeout(() => showMenu(li, friendUid), 700); });
       li.addEventListener("mouseup", () => clearTimeout(pressTimer));
       li.addEventListener("mouseleave", () => clearTimeout(pressTimer));
 
       chatList.appendChild(li);
+
+      // ------------------ Listen for unread messages ------------------
+      const chatId = [currentUid, friendUid].sort().join("_");
+      const messagesRef = collection(db, "chats", chatId, "messages");
+      onSnapshot(messagesRef, snap => {
+        let hasUnread = false;
+        snap.docs.forEach(m => {
+          const msg = m.data();
+          if (msg.uid !== currentUid && !msg.readBy?.includes(currentUid)) {
+            hasUnread = true;
+          }
+        });
+        unreadDot.style.display = hasUnread ? "inline-block" : "none";
+      });
     }
   });
 });
