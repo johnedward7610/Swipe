@@ -4,6 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Homepage</title>
+
 <style>
 :root{--primary:#6e8ef5;--accent:#ff6e6e}
 body{font-family:sans-serif;background:#f4f6ff;margin:0;padding:20px;}
@@ -24,6 +25,7 @@ body{font-family:sans-serif;background:#f4f6ff;margin:0;padding:20px;}
 .comment-btn{background:var(--primary);color:#fff}
 .delete-btn{background:#222;color:#fff}
 .likes-count{font-weight:700;margin-left:6px}
+.views-count{color:#555;font-size:14px;margin-left:auto}
 .comments-area{margin-top:10px;border-top:1px solid #eee;padding-top:10px}
 .comment-card{background:#f6f7ff;padding:8px;border-radius:8px;margin-bottom:8px}
 .floating-post{position:fixed;right:22px;bottom:22px;width:58px;height:58px;border-radius:999px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-size:32px;box-shadow:0 8px 24px rgba(0,0,0,.15);cursor:pointer}
@@ -50,8 +52,15 @@ textarea.comment-input{width:100%;padding:8px;border-radius:8px;border:1px solid
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getFirestore, collection, query, orderBy, limit, startAfter, getDocs, doc, onSnapshot, deleteDoc, setDoc, getDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { 
+  getAuth, 
+  onAuthStateChanged 
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+
+import { 
+  getFirestore, collection, query, orderBy, limit, startAfter,
+  getDocs, doc, onSnapshot, deleteDoc, setDoc, getDoc, addDoc 
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
@@ -70,6 +79,13 @@ const db = getFirestore(app);
 let currentUser = null;
 onAuthStateChanged(auth, user => currentUser = user);
 
+// ---------- Anonymous Device ID for View Tracking ----------
+if (!localStorage.getItem("deviceID")) {
+  localStorage.setItem("deviceID", "dev-" + crypto.randomUUID());
+}
+const deviceID = localStorage.getItem("deviceID");
+
+// ---------- DOM ----------
 const postsContainer = document.getElementById('postsContainer');
 const loadMoreEl = document.getElementById('loadMore');
 const floatingPost = document.getElementById('floatingPost');
@@ -88,23 +104,29 @@ async function getUserProfile(uid){
   return userDoc.exists() ? userDoc.data() : null;
 }
 
+// ==============================
+//   RENDER POST CARD
+// ==============================
 async function renderPostCard(postId, data){
   const card = document.createElement('div');
   card.className = 'post-card';
   card.id = `post-${postId}`;
 
-  // Fetch user profile for name & photo
   const profile = await getUserProfile(data.uid);
   const displayName = profile?.fullName || profile?.displayName || 'Unknown';
   const photoURL = profile?.photoURL || '';
 
   card.innerHTML = `
     <div class="post-header">
-      <div class="avatar" style="${photoURL?'background-image:url('+photoURL+');background-size:cover;background-position:center':''}">${photoURL?'':displayName[0].toUpperCase()}</div>
+      <div class="avatar" style="${photoURL?'background-image:url('+photoURL+');background-size:cover;background-position:center':''}">
+        ${photoURL?'':displayName[0].toUpperCase()}
+      </div>
+
       <div style="flex:1">
         <div class="post-name" data-uid="${data.uid}">${displayName}</div>
         <div class="post-time">${formatTime(data.createdAt)}</div>
       </div>
+
       ${currentUser?.uid !== data.uid ? `<button class="follow-btn" id="follow-${postId}">Follow</button>` : ""}
     </div>
 
@@ -114,7 +136,11 @@ async function renderPostCard(postId, data){
     <div class="actions">
       <button class="btn like-btn" id="like-${postId}">❤️ Like</button>
       <span class="likes-count" id="likes-${postId}">0</span>
+
       <button class="btn comment-btn" id="toggle-${postId}">💬 Comment</button>
+
+      <span class="views-count" id="views-${postId}">0 views</span>
+
       ${currentUser?.uid === data.uid ? `<button class="btn delete-btn" id="del-${postId}">🗑 Delete</button>` : ""}
     </div>
 
@@ -130,8 +156,7 @@ async function renderPostCard(postId, data){
     data.mediaUrls.forEach(url=>{
       if(url.match(/\.(mp4|webm|ogg)$/)){
         const video = document.createElement('video');
-        video.src = url;
-        video.controls = true;
+        video.src = url; video.controls = true;
         video.style.maxWidth = data.mediaUrls.length===1?'100%':'48%';
         imgBox.appendChild(video);
       } else {
@@ -143,11 +168,13 @@ async function renderPostCard(postId, data){
     });
   }
 
+  // go to profile
   card.querySelector('.post-name').onclick = e=>{
     const uid = e.target.dataset.uid;
     location.href = `profile.html?uid=${uid}`;
   };
 
+  // ------------------------------ LIKE SYSTEM ------------------------------
   const likeBtn = card.querySelector(`#like-${postId}`);
   likeBtn.onclick = async ()=>{
     if(!currentUser) return alert('Login first');
@@ -157,6 +184,7 @@ async function renderPostCard(postId, data){
     card.querySelector(`#likes-${postId}`).textContent = snap.size;
   });
 
+  // ------------------------------ DELETE ------------------------------
   const delBtn = card.querySelector(`#del-${postId}`);
   if(delBtn){
     delBtn.onclick = async ()=>{
@@ -166,38 +194,54 @@ async function renderPostCard(postId, data){
     };
   }
 
+  // ------------------------------ FOLLOW ------------------------------
   const fbtn = card.querySelector(`#follow-${postId}`);
   if(fbtn){
     fbtn.onclick = async ()=>{
       if(!currentUser) return alert('Login');
       const follower = doc(db,'users',data.uid,'followers',currentUser.uid);
       const following = doc(db,'users',currentUser.uid,'following',data.uid);
+
       const snap = await getDoc(follower);
-      if(snap.exists()){ await deleteDoc(follower); await deleteDoc(following); fbtn.textContent='Follow'; }
-      else{ await setDoc(follower,{followedAt:new Date()}); await setDoc(following,{followedAt:new Date()}); fbtn.textContent='Following'; }
+      if(snap.exists()){ 
+        await deleteDoc(follower); 
+        await deleteDoc(following); 
+        fbtn.textContent='Follow'; 
+      } else { 
+        await setDoc(follower,{followedAt:new Date()});
+        await setDoc(following,{followedAt:new Date()});
+        fbtn.textContent='Following'; 
+      }
     };
-    getDoc(doc(db,'users',data.uid,'followers',currentUser?.uid)).then(s=>fbtn.textContent = s.exists()?'Following':'Follow');
+    getDoc(doc(db,'users',data.uid,'followers',currentUser?.uid))
+      .then(s=>fbtn.textContent = s.exists()?'Following':'Follow');
   }
 
+  // ------------------------------ COMMENTS ------------------------------
   const carea = card.querySelector(`#carea-${postId}`);
-  card.querySelector(`#toggle-${postId}`).onclick = ()=>carea.style.display = carea.style.display==='none'?'block':'none';
+  card.querySelector(`#toggle-${postId}`).onclick = ()=>carea.style.display =
+    carea.style.display==='none' ? 'block':'none';
+
   const list = card.querySelector(`#clist-${postId}`);
   onSnapshot(collection(db,'posts',postId,'comments'),snap=>{
     list.innerHTML='';
-    const frag = document.createDocumentFragment();
     snap.forEach(c=>{
       const d = c.data();
       const div = document.createElement('div');
       div.className='comment-card';
-      div.innerHTML=`<div style="font-weight:700">${d.name}</div><div style="font-size:12px;color:#666">${formatTime(d.createdAt)}</div><div>${escapeHtml(d.text)}</div>`;
-      frag.appendChild(div);
+      div.innerHTML=`
+        <div style="font-weight:700">${d.name}</div>
+        <div style="font-size:12px;color:#666">${formatTime(d.createdAt)}</div>
+        <div>${escapeHtml(d.text)}</div>`;
+      list.appendChild(div);
     });
-    list.appendChild(frag);
   });
+
   card.querySelector(`#cpost-${postId}`).onclick = async ()=>{
     if(!currentUser) return alert('Login first');
     const txt = card.querySelector(`#cinput-${postId}`).value.trim();
     if(!txt) return;
+
     await addDoc(collection(db,'posts',postId,'comments'),{
       uid:currentUser.uid,
       name:currentUser.displayName||currentUser.email||'Unknown',
@@ -207,14 +251,37 @@ async function renderPostCard(postId, data){
     card.querySelector(`#cinput-${postId}`).value='';
   };
 
+  // ==============================
+  //          VIEW COUNTER
+  // ==============================
+  const viewDocId = currentUser?.uid || deviceID;
+
+  if (!sessionStorage.getItem("viewed-" + postId)) {
+    sessionStorage.setItem("viewed-" + postId, "true");
+
+    await setDoc(doc(db, "posts", postId, "views", viewDocId), {
+      viewedAt: new Date()
+    });
+  }
+
+  onSnapshot(collection(db, "posts", postId, "views"), snap => {
+    card.querySelector(`#views-${postId}`).textContent = snap.size + " views";
+  });
+
   postsContainer.appendChild(card);
 }
 
+// ==============================
+//          LOAD POSTS
+// ==============================
 async function loadPosts(initial=false){
   if(loading || finished) return;
   loading = true;
+
   let q = query(collection(db,'posts'),orderBy('createdAt','desc'),limit(PAGE_SIZE));
-  if(!initial && lastVisible) q = query(collection(db,'posts'),orderBy('createdAt','desc'),startAfter(lastVisible),limit(PAGE_SIZE));
+  if(!initial && lastVisible) 
+    q = query(collection(db,'posts'),orderBy('createdAt','desc'),
+      startAfter(lastVisible),limit(PAGE_SIZE));
 
   const snap = await getDocs(q);
   if(snap.empty){
