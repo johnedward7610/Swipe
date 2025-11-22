@@ -6,43 +6,27 @@
 <title>Messages</title>
 <style>
 body { font-family: Arial, sans-serif; padding: 20px; background: #f4f6ff; }
-h2 { color: #333; margin-bottom: 20px; }
-table { width: 100%; border-collapse: collapse; background: white; }
-th, td { padding: 12px; border-bottom: 1px solid #ccc; }
-th { background: #6e8ef5; color: white; text-align: left; }
-tr:hover { background: #e0e0ff; cursor: pointer; }
-img { border-radius: 50%; width: 50px; height: 50px; object-fit: cover; margin-right: 10px; }
-a { text-decoration: none; color: black; display: flex; align-items: center; }
-.muted { opacity: 0.5; }
-.blocked { background-color: #ffdddd; }
-button { padding: 6px 12px; border: none; border-radius: 6px; background: #6e8ef5; color: white; cursor: pointer; margin-left: 5px; }
-button:hover { background: #8ea2ff; }
-#errorBox { color: red; font-weight: bold; margin-top: 20px; }
+h2 { color: #333; }
+.chatRow { display: flex; align-items: center; gap: 10px; padding: 10px; background: white; margin-bottom: 8px; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+.chatRow:hover { background: #e0e0ff; }
+.chatRow img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
+.chatRow span { font-size: 16px; font-weight: 500; }
+.errorBox { color: red; font-weight: bold; margin-top: 20px; }
 </style>
 </head>
 <body>
 
 <h2>Messages</h2>
-<button id="logoutBtn">Log Out</button>
+<div id="messagesList"></div>
 <p id="loading">Loading chats...</p>
-<p id="errorBox"></p>
-
-<table id="chatTable" style="display:none;">
-  <thead>
-    <tr>
-      <th>Friend</th>
-      <th>Last Message</th>
-      <th>Time</th>
-    </tr>
-  </thead>
-  <tbody id="chatRows"></tbody>
-</table>
+<p id="errorBox" class="errorBox"></p>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { getFirestore, collection, getDocs, query, where, doc, setDoc, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
   authDomain: "swipe-f90ed.firebaseapp.com",
@@ -57,96 +41,87 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+const messagesList = document.getElementById("messagesList");
 const loadingText = document.getElementById("loading");
-const chatRows = document.getElementById("chatRows");
-const chatTable = document.getElementById("chatTable");
-const logoutBtn = document.getElementById("logoutBtn");
 const errorBox = document.getElementById("errorBox");
 
-// Logout
-logoutBtn.addEventListener("click", async () => {
-  await signOut(auth);
-  window.location.href = "index.html";
-});
-
-// Load chats
 onAuthStateChanged(auth, async (user) => {
-  if(!user){ window.location.href="index.html"; return; }
-  const uid = user.uid;
+  if (!user) {
+    window.location.href = "index.html";
+    return;
+  }
 
   try {
-    const chatsSnap = await getDocs(collection(db,"users",uid,"chats"));
-    chatRows.innerHTML="";
-    const otherUids = [];
+    const uid = user.uid;
+    const chatsQuery = query(collection(db, "chats"), where("participants", "array-contains", uid));
+    const chatsSnapshot = await getDocs(chatsQuery);
 
-    // Collect other UIDs
-    chatsSnap.forEach(docSnap=>{
-      const data = docSnap.data();
-      otherUids.push(data.otherUid);
-    });
+    messagesList.innerHTML = "";
 
-    // Fetch user info
-    const usersMap = {};
-    if(otherUids.length>0){
-      const usersSnap = await getDocs(collection(db,"users"));
-      usersSnap.forEach(docSnap=>{
-        if(otherUids.includes(docSnap.id)){
-          const d = docSnap.data();
-          usersMap[docSnap.id]={name:d.fullName||"Unknown", photoURL:d.photoURL||"https://www.gravatar.com/avatar/?d=mp"};
-        }
-      });
+    if (chatsSnapshot.empty) {
+      loadingText.innerText = "No chats yet.";
+      return;
     }
 
-    // Render rows
-    chatsSnap.forEach(docSnap=>{
-      const data = docSnap.data();
-      const otherUid = data.otherUid;
-      const info = usersMap[otherUid]||{name:"Unknown", photoURL:"https://www.gravatar.com/avatar/?d=mp"};
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td><a href="profile.html?uid=${otherUid}"><img src="${info.photoURL}"><span>${info.name}</span></a></td>
-        <td>${data.lastMessage||""}</td>
-        <td>${data.timestamp?.toDate ? data.timestamp.toDate().toLocaleString():""}</td>
-      `;
+    for (const chatDoc of chatsSnapshot.docs) {
+      const participants = chatDoc.data().participants.filter(p => p !== uid);
+      const otherUid = participants[0]; // 1-to-1 chat
+      const row = await createChatRow(chatDoc.id, otherUid);
+      messagesList.appendChild(row);
+    }
 
-      // Click to chat
-      tr.addEventListener("click",()=>{
-        localStorage.setItem("chatWithUid", otherUid);
-        localStorage.setItem("chatWithName", info.name);
-        window.location.href="chat.html";
-      });
+    loadingText.style.display = "none";
 
-      // Long press to mute/block
-      let pressTimer;
-      tr.addEventListener("mousedown",()=>{
-        pressTimer=setTimeout(async ()=>{
-          const action=prompt("Type 'mute' to mute or 'block' to block this user:");
-          if(action==="mute"){
-            await setDoc(doc(db,"users",uid,"muted",otherUid),{muted:true});
-            tr.classList.add("muted");
-            alert(`${info.name} muted.`);
-          } else if(action==="block"){
-            await setDoc(doc(db,"users",uid,"blocked",otherUid),{blocked:true});
-            tr.classList.add("blocked");
-            alert(`${info.name} blocked.`);
-          }
-        },800);
-      });
-      tr.addEventListener("mouseup",()=>clearTimeout(pressTimer));
-      tr.addEventListener("mouseleave",()=>clearTimeout(pressTimer));
-
-      chatRows.appendChild(tr);
-    });
-
-    chatTable.style.display="table";
-    loadingText.style.display="none";
-
-  } catch(err){
-    loadingText.style.display="none";
-    errorBox.innerText="ERROR: "+err.message;
+  } catch (err) {
     console.error(err);
+    loadingText.style.display = "none";
+    errorBox.innerText = "Error loading chats: " + err.message;
   }
 });
+
+async function createChatRow(chatId, otherUid) {
+  const userDoc = await getDoc(doc(db, "users", otherUid));
+  const userData = userDoc.exists() ? userDoc.data() : { fullName: "Unknown", photoURL: "https://www.gravatar.com/avatar/?d=mp" };
+
+  const row = document.createElement("div");
+  row.classList.add("chatRow");
+  row.innerHTML = `
+    <img src="${userData.photoURL || 'https://www.gravatar.com/avatar/?d=mp'}" />
+    <span>${userData.fullName || 'Unknown'}</span>
+  `;
+
+  // click to open chat
+  row.addEventListener("click", () => {
+    localStorage.setItem("chatWithUid", otherUid);
+    localStorage.setItem("chatWithName", userData.fullName || "Unknown");
+    window.location.href = "chat.html";
+  });
+
+  // long press for block/mute
+  let timer;
+  row.addEventListener("mousedown", () => {
+    timer = setTimeout(() => showBlockMuteOptions(otherUid), 700);
+  });
+  row.addEventListener("mouseup", () => clearTimeout(timer));
+  row.addEventListener("mouseleave", () => clearTimeout(timer));
+
+  return row;
+}
+
+function showBlockMuteOptions(targetUid) {
+  const action = prompt("Type 'block' to block or 'mute' to mute this user");
+  const uid = auth.currentUser.uid;
+
+  if (!action) return;
+
+  if (action.toLowerCase() === "block") {
+    setDoc(doc(db, `users/${uid}/blocked/${targetUid}`), { blockedAt: serverTimestamp() });
+    alert("User blocked");
+  } else if (action.toLowerCase() === "mute") {
+    setDoc(doc(db, `users/${uid}/muted/${targetUid}`), { mutedAt: serverTimestamp() });
+    alert("User muted");
+  }
+}
 </script>
 </body>
 </html>
