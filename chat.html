@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chat</title>
-
 <style>
 /* ==== GLOBAL ==== */
 body {
@@ -54,7 +53,6 @@ body {
   animation: fadeIn 0.2s ease-in-out;
 }
 
-/* Sent Message */
 .sent {
   align-self: flex-end;
   background: #6e8ef5;
@@ -63,7 +61,6 @@ body {
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
 
-/* Received Message */
 .received {
   align-self: flex-start;
   background: #ffffff;
@@ -78,7 +75,6 @@ body {
   margin-top: 5px;
 }
 
-/* Fade animation */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
@@ -129,11 +125,9 @@ body {
 }
 </style>
 </head>
-
 <body>
 
-<h2 id="chatWith"></h2>
-
+<h2 id="chatWith">Chat</h2>
 <div id="messages"></div>
 
 <div class="input-area">
@@ -144,10 +138,9 @@ body {
 </div>
 
 <script type="module">
-/* 🔥 DO NOT CHANGE JS — YOUR JS CODE HERE EXACTLY AS PROVIDED */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, collection, doc, setDoc, getDoc, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
@@ -175,7 +168,6 @@ const photoInput = document.getElementById("photoInput");
 
 chatWithElem.textContent = "Chat with " + chatWithName;
 
-/* CLOUDINARY UPLOAD FUNCTION (same as your Create Post page) */
 async function uploadToCloudinary(file){
   const url = `https://api.cloudinary.com/v1_1/dkq1530ap/upload`;
   const formData = new FormData();
@@ -195,10 +187,18 @@ onAuthStateChanged(auth, async (user) => {
 
   const currentUid = user.uid;
   const chatId = [currentUid, chatWithUid].sort().join("_");
+  const chatRef = doc(db, "chats", chatId);
+
+  // Create chat document if not exists
+  const chatSnap = await getDoc(chatRef);
+  if (!chatSnap.exists()) {
+    await setDoc(chatRef, { participants: [currentUid, chatWithUid] });
+  }
 
   const messagesRef = collection(db, "chats", chatId, "messages");
   const q = query(messagesRef, orderBy("timestamp", "asc"));
 
+  // Listen for messages
   onSnapshot(q, (snapshot) => {
     messagesDiv.innerHTML = "";
     snapshot.forEach(doc => {
@@ -224,9 +224,10 @@ onAuthStateChanged(auth, async (user) => {
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
 
+  // Send text message
   sendBtn.addEventListener("click", async () => {
     const text = chatInput.value.trim();
-    if (text === "") return;
+    if (!text) return;
 
     await addDoc(messagesRef, {
       sender: currentUid,
@@ -238,18 +239,13 @@ onAuthStateChanged(auth, async (user) => {
     chatInput.value = "";
   });
 
-  /* 📷 Photo button opens hidden input */
-  photoBtn.addEventListener("click", () => {
-    photoInput.click();
-  });
-
-  /* 📤 Upload image and send */
+  // Upload photo
+  photoBtn.addEventListener("click", () => photoInput.click());
   photoInput.addEventListener("change", async () => {
     const file = photoInput.files[0];
     if (!file) return;
 
     const imgURL = await uploadToCloudinary(file);
-
     await addDoc(messagesRef, {
       sender: currentUid,
       receiver: chatWithUid,
@@ -261,6 +257,5 @@ onAuthStateChanged(auth, async (user) => {
   });
 });
 </script>
-
 </body>
 </html>
