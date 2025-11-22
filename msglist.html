@@ -10,16 +10,9 @@ body {
   padding: 20px;
   background: #f4f6ff;
 }
+h2 { color: #333; }
 
-h2 {
-  color: #333;
-}
-
-#chatList {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
+#chatList { list-style: none; padding: 0; margin: 0; }
 
 .chatItem {
   display: flex;
@@ -34,9 +27,7 @@ h2 {
   position: relative;
 }
 
-.chatItem:hover {
-  background: #e0e0ff;
-}
+.chatItem:hover { background: #e0e0ff; }
 
 .chatItem img {
   width: 50px;
@@ -45,14 +36,7 @@ h2 {
   object-fit: cover;
 }
 
-.chatItem .name {
-  font-weight: bold;
-  flex: 1;
-}
-
-.chatting {
-  background-color: #fff7d6 !important;
-}
+.chatItem .name { font-weight: bold; flex: 1; }
 
 .longPressMenu {
   position: absolute;
@@ -78,9 +62,7 @@ h2 {
   font-size: 14px;
 }
 
-.longPressMenu button:hover {
-  background: #5a78d8;
-}
+.longPressMenu button:hover { background: #5a78d8; }
 </style>
 </head>
 <body>
@@ -91,7 +73,7 @@ h2 {
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getFirestore, collection, query, where, getDocs, orderBy, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, collection, doc, onSnapshot, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
@@ -111,69 +93,61 @@ const chatList = document.getElementById("chatList");
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return window.location.href = "index.html";
-
   const currentUid = user.uid;
 
-  // Listen to all chats involving current user
   const chatsRef = collection(db, "chats");
+
   onSnapshot(chatsRef, async (snapshot) => {
     chatList.innerHTML = "";
-    const chatItems = [];
 
-    for (let chatDoc of snapshot.docs) {
+    for (const chatDoc of snapshot.docs) {
       const chatData = chatDoc.data();
       if (!chatData.participants.includes(currentUid)) continue;
 
       const otherUid = chatData.participants.find(uid => uid !== currentUid);
 
-      // Get other user info
-      const userDoc = await getDocs(query(collection(db, "users"), where("__name__", "==", otherUid)));
-      const userData = userDoc.docs[0]?.data() || {};
+      // Fetch other user directly
+      const otherUserDoc = await getDoc(doc(db, "users", otherUid));
+      const userData = otherUserDoc.exists() ? otherUserDoc.data() : {};
       const name = userData.fullName || "Unknown";
       const photo = userData.photoURL || "https://www.gravatar.com/avatar/?d=mp";
 
-      chatItems.push({ uid: otherUid, name, photo, chatId: chatDoc.id });
-    }
-
-    // Render chat items
-    chatItems.forEach(item => {
       const li = document.createElement("li");
       li.className = "chatItem";
       li.innerHTML = `
-        <img src="${item.photo}" alt="profile">
-        <span class="name">${item.name}</span>
+        <img src="${photo}" alt="profile">
+        <span class="name">${name}</span>
       `;
 
-      // Navigate to chat on click
+      // Click to open chat
       li.addEventListener("click", () => {
-        localStorage.setItem("chatWithUid", item.uid);
-        localStorage.setItem("chatWithName", item.name);
+        localStorage.setItem("chatWithUid", otherUid);
+        localStorage.setItem("chatWithName", name);
         window.location.href = "chat.html";
       });
 
-      // Long press menu for mute/block
+      // Long press for mute/block
       let pressTimer;
       li.addEventListener("mousedown", () => {
-        pressTimer = setTimeout(() => showMenu(li, item.uid), 700);
+        pressTimer = setTimeout(() => showMenu(li, otherUid), 700);
       });
       li.addEventListener("mouseup", () => clearTimeout(pressTimer));
       li.addEventListener("mouseleave", () => clearTimeout(pressTimer));
 
       chatList.appendChild(li);
-    });
+    }
   });
 });
 
-// Show long press menu
+// Show menu
 function showMenu(li, otherUid) {
-  if (li.querySelector(".longPressMenu")) return; // Already open
+  if (li.querySelector(".longPressMenu")) return;
   const menu = document.createElement("div");
   menu.className = "longPressMenu";
   menu.innerHTML = `
     <button id="muteBtn">Mute</button>
     <button id="blockBtn">Block</button>
   `;
-
   li.appendChild(menu);
 
   menu.querySelector("#muteBtn").addEventListener("click", async () => {
@@ -188,12 +162,10 @@ function showMenu(li, otherUid) {
     alert("User blocked");
   });
 
-  // Close menu if clicked elsewhere
   document.addEventListener("click", e => {
     if (!li.contains(e.target)) menu.remove();
   }, { once: true });
 }
 </script>
-
 </body>
 </html>
