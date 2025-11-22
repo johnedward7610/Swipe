@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chat</title>
 <style>
-/* ==== GLOBAL ==== */
 body {
   font-family: "Inter", sans-serif;
   margin: 0;
@@ -15,8 +14,6 @@ body {
   display: flex;
   flex-direction: column;
 }
-
-/* ==== HEADER ==== */
 #chatWith {
   margin: 0;
   padding: 15px;
@@ -31,8 +28,6 @@ body {
   top: 0;
   z-index: 10;
 }
-
-/* ==== MESSAGES BOX ==== */
 #messages {
   flex: 1;
   padding: 20px;
@@ -41,8 +36,6 @@ body {
   flex-direction: column;
   gap: 10px;
 }
-
-/* Chat Bubbles */
 .message {
   max-width: 75%;
   padding: 10px 14px;
@@ -50,37 +43,24 @@ body {
   font-size: 15px;
   line-height: 1.4;
   word-break: break-word;
-  animation: fadeIn 0.2s ease-in-out;
 }
-
 .sent {
   align-self: flex-end;
   background: #6e8ef5;
   color: white;
   border-bottom-right-radius: 4px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
-
 .received {
   align-self: flex-start;
   background: #ffffff;
   color: #333;
   border-bottom-left-radius: 4px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
-
 .message img {
   max-width: 200px;
   border-radius: 10px;
   margin-top: 5px;
 }
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* ==== INPUT BAR ==== */
 .input-area {
   display: flex;
   gap: 10px;
@@ -89,7 +69,6 @@ body {
   backdrop-filter: blur(6px);
   box-shadow: 0 -3px 10px rgba(0,0,0,0.1);
 }
-
 #chatInput {
   flex: 1;
   padding: 12px 15px;
@@ -99,12 +78,7 @@ body {
   font-size: 15px;
   background: #fafafa;
 }
-
-#chatInput:focus {
-  border-color: #6e8ef5;
-  background: white;
-}
-
+#chatInput:focus { border-color: #6e8ef5; background: white; }
 #sendBtn, #photoBtn {
   padding: 12px 18px;
   border: none;
@@ -113,16 +87,9 @@ body {
   color: white;
   font-size: 15px;
   cursor: pointer;
-  transition: 0.2s;
 }
-
-#sendBtn:hover, #photoBtn:hover {
-  background: #5a78d8;
-}
-
-#photoInput {
-  display: none;
-}
+#sendBtn:hover, #photoBtn:hover { background: #5a78d8; }
+#photoInput { display: none; }
 </style>
 </head>
 <body>
@@ -142,6 +109,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/fireba
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, getDoc, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
+// 🔹 Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
   authDomain: "swipe-f90ed.firebaseapp.com",
@@ -168,12 +136,12 @@ const photoInput = document.getElementById("photoInput");
 
 chatWithElem.textContent = "Chat with " + chatWithName;
 
-async function uploadToCloudinary(file){
+// 🔹 Cloudinary upload function
+async function uploadToCloudinary(file) {
   const url = `https://api.cloudinary.com/v1_1/dkq1530ap/upload`;
   const formData = new FormData();
   formData.append('file', file);
   formData.append('upload_preset', 'bc0uzx6v');
-
   const res = await fetch(url, { method: "POST", body: formData });
   const data = await res.json();
   return data.secure_url;
@@ -187,10 +155,11 @@ onAuthStateChanged(auth, async (user) => {
 
   const currentUid = user.uid;
   const chatId = [currentUid, chatWithUid].sort().join("_");
-  const chatRef = doc(db, "chats", chatId);
 
-  // Create chat document if not exists
+  const chatRef = doc(db, "chats", chatId);
   const chatSnap = await getDoc(chatRef);
+
+  // 🔹 Create chat document if it doesn’t exist
   if (!chatSnap.exists()) {
     await setDoc(chatRef, { participants: [currentUid, chatWithUid] });
   }
@@ -198,14 +167,13 @@ onAuthStateChanged(auth, async (user) => {
   const messagesRef = collection(db, "chats", chatId, "messages");
   const q = query(messagesRef, orderBy("timestamp", "asc"));
 
-  // Listen for messages
+  // 🔹 Real-time listener
   onSnapshot(q, (snapshot) => {
     messagesDiv.innerHTML = "";
     snapshot.forEach(doc => {
       const m = doc.data();
       const div = document.createElement("div");
-      div.classList.add("message");
-      div.classList.add(m.sender === currentUid ? "sent" : "received");
+      div.classList.add("message", m.sender === currentUid ? "sent" : "received");
 
       if (m.imageUrl) {
         const img = document.createElement("img");
@@ -224,7 +192,7 @@ onAuthStateChanged(auth, async (user) => {
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
 
-  // Send text message
+  // 🔹 Send text
   sendBtn.addEventListener("click", async () => {
     const text = chatInput.value.trim();
     if (!text) return;
@@ -239,13 +207,14 @@ onAuthStateChanged(auth, async (user) => {
     chatInput.value = "";
   });
 
-  // Upload photo
+  // 🔹 Send image
   photoBtn.addEventListener("click", () => photoInput.click());
   photoInput.addEventListener("change", async () => {
     const file = photoInput.files[0];
     if (!file) return;
 
     const imgURL = await uploadToCloudinary(file);
+
     await addDoc(messagesRef, {
       sender: currentUid,
       receiver: chatWithUid,
@@ -255,6 +224,7 @@ onAuthStateChanged(auth, async (user) => {
 
     photoInput.value = "";
   });
+
 });
 </script>
 </body>
