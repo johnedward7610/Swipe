@@ -6,7 +6,7 @@
 <title>Create Post</title>
 <style>
 body{font-family:sans-serif;background:#f4f6ff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
-.card{background:#fff;padding:20px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.08);width:380px}
+.card{background:#fff;padding:20px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.08);width:420px;position:relative}
 textarea{width:100%;height:100px;padding:10px;border-radius:8px;border:1px solid #ddd;resize:vertical}
 input[type=file]{margin-top:8px}
 .img-preview{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
@@ -17,12 +17,20 @@ input[type=file]{margin-top:8px}
 .progress{height:8px;background:#eee;border-radius:8px;margin-top:8px;overflow:hidden;position:relative}
 .progress i{display:block;height:100%;background:#6e8ef5;width:0%}
 .progress span{position:absolute;top:-22px;right:0;font-size:12px;color:#333}
+
+/* Tag suggestion */
+#tagSuggestions { position:absolute; z-index:999; width:360px; max-height:200px; overflow:auto; background:#fff; border:1px solid #ddd; border-radius:8px; display:none; }
+#tagSuggestions div{padding:8px;cursor:pointer}
+#tagSuggestions div:hover{background:#f0f2ff}
 </style>
 </head>
 <body>
 <div class="card">
   <h3>Create a Post</h3>
   <textarea id="postText" placeholder="What's on your mind?"></textarea>
+
+  <div id="tagSuggestions"></div>
+
   <div class="small">Attach images/videos (max 6)</div>
   <input type="file" id="media" accept="image/*,video/*" multiple />
   <div class="img-preview" id="preview"></div>
@@ -37,11 +45,13 @@ input[type=file]{margin-top:8px}
 </div>
 
 <script type="module">
+/* ===== Firebase & imports ===== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import {
+  getFirestore, collection, addDoc, serverTimestamp, updateDoc, getDocs, doc, getDoc, setDoc
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
-// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
   authDomain: "swipe-f90ed.firebaseapp.com",
@@ -56,10 +66,14 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+/* ===== State & DOM ===== */
 let currentUser = null;
 onAuthStateChanged(auth, u => {
   currentUser = u;
-  if(!u) location.href='index.html';
+  if(!u) {
+    // if not logged in, redirect to index or show message
+    // location.href='index.html';
+  }
 });
 
 const postBtn = document.getElementById('postBtn');
@@ -69,10 +83,21 @@ const preview = document.getElementById('preview');
 const progressEl = document.getElementById('progress');
 const progressBar = document.getElementById('progressbar');
 const progressPct = document.getElementById('progressPct');
+const postText = document.getElementById('postText');
+const tagSuggestions = document.getElementById('tagSuggestions');
 
 let selectedFiles = [];
+let allUsers = [];
+let detectedTags = []; // store selected user uids for tags
 
-// Preview media
+/* ===== Load users for tagging suggestions ===== */
+async function loadUsers(){
+  const snap = await getDocs(collection(db,'users'));
+  allUsers = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+}
+loadUsers();
+
+/* ===== Media preview logic ===== */
 mediaInput.addEventListener('change', e => {
   selectedFiles = Array.from(e.target.files).slice(0,6);
   preview.innerHTML = '';
@@ -91,10 +116,8 @@ mediaInput.addEventListener('change', e => {
   });
 });
 
-cancelBtn.addEventListener('click', ()=>location.href='homepage.html');
-
-// Cloudinary upload
-async function uploadToCloudinary(file){
+/* ===== Cloudinary upload helper ===== */
+async function uploadToCloudinary(file, onProgress){
   const url = `https://api.cloudinary.com/v1_1/dkq1530ap/upload`;
   const formData = new FormData();
   formData.append('file', file);
@@ -105,10 +128,9 @@ async function uploadToCloudinary(file){
     xhr.open('POST', url);
 
     xhr.upload.onprogress = e => {
-      if(e.lengthComputable){
+      if(e.lengthComputable && onProgress) {
         const pct = Math.round((e.loaded / e.total) * 100);
-        progressBar.style.width = pct + '%';
-        progressPct.innerText = pct + '%';
+        onProgress(pct);
       }
     };
 
@@ -124,9 +146,52 @@ async function uploadToCloudinary(file){
   });
 }
 
-// Post button
+/* ===== Tagging UI: listen for @ and show suggestions ===== */
+postText.addEventListener('keyup', (e)=>{
+  const text = postText.value;
+  const cursorPos = postText.selectionStart;
+  const sliced = text.slice(0, cursorPos);
+  const match = sliced.match(/\@([a-zA-Z0-9 _\-\.]{1,30})$/);
+  if(!match){
+    tagSuggestions.style.display = "none";
+    return;
+  }
+  const queryStr = match[1].trim().toLowerCase();
+  if(!queryStr){ tagSuggestions.style.display="none"; return; }
+
+  const matches = allUsers.filter(u=>{
+    const name = (u.fullName || u.displayName || u.email || '').toLowerCase();
+    return name.includes(queryStr);
+  }).slice(0,8);
+
+  if(matches.length===0){ tagSuggestions.style.display="none"; return; }
+  tagSuggestions.innerHTML = "";
+  matches.forEach(u=>{
+    const div = document.createElement('div');
+    div.textContent = (u.fullName || u.displayName || u.email || 'Unknown');
+    div.onclick = ()=>{
+      // replace the @token with the user's display name and add uid to detectedTags
+      const before = text.slice(0, cursorPos).replace(/\@([a-zA-Z0-9 _\-\.]{1,30})$/, `@${u.fullName || u.displayName || u.email}`);
+      const after = text.slice(cursorPos);
+      postText.value = before + " " + after;
+      detectedTags = Array.from(new Set([...detectedTags, u.uid]));
+      tagSuggestions.style.display="none";
+      postText.focus();
+    };
+    tagSuggestions.appendChild(div);
+  });
+
+  // position suggestions box under textarea (approx)
+  const rect = postText.getBoundingClientRect();
+  tagSuggestions.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+  tagSuggestions.style.left = (rect.left + window.scrollX) + 'px';
+  tagSuggestions.style.display = 'block';
+});
+
+/* ===== Post creation ===== */
 postBtn.addEventListener('click', async ()=>{
-  const text = document.getElementById('postText').value.trim();
+  if(!currentUser) return alert('Please login first');
+  const text = postText.value.trim();
   if(!text && selectedFiles.length===0) return alert('Write something or attach media');
 
   postBtn.disabled = true;
@@ -135,32 +200,60 @@ postBtn.addEventListener('click', async ()=>{
   progressEl.style.display = 'block';
 
   try {
-    // Create Firestore post
+    // create the post doc first (so we have an id to reference in notifications)
     const postRef = await addDoc(collection(db,'posts'),{
       uid: currentUser.uid,
       name: currentUser.displayName || currentUser.email,
-      text,
+      text: text || '',
       createdAt: serverTimestamp(),
-      mediaUrls: []
+      mediaUrls: [],
+      tags: detectedTags
     });
 
+    // If media - upload serially and update progress
+    let urls = [];
     if(selectedFiles.length>0){
-      const urls = [];
       for(let i=0;i<selectedFiles.length;i++){
-        const url = await uploadToCloudinary(selectedFiles[i]);
+        const url = await uploadToCloudinary(selectedFiles[i], pct=>{
+          // compute overall progress across files (approx)
+          const perFile = Math.round(( (i + pct/100) / selectedFiles.length) * 100);
+          progressBar.style.width = perFile + '%';
+          progressPct.innerText = perFile + '%';
+        });
         urls.push(url);
       }
-      await updateDoc(postRef,{mediaUrls: urls});
+      await updateDoc(postRef, { mediaUrls: urls });
+      progressBar.style.width = '100%';
+      progressPct.innerText = '100%';
+    }
+
+    // Create notifications for tagged users
+    if(detectedTags.length > 0){
+      for(const uid of detectedTags){
+        await addDoc(collection(db,'notifications'),{
+          to: uid,
+          from: currentUser.uid,
+          postId: postRef.id,
+          type: 'tag',
+          seen: false,
+          createdAt: serverTimestamp()
+        });
+      }
     }
 
     alert('Post created successfully!');
     location.href='homepage.html';
   } catch(err){
+    console.error(err);
     alert('Failed to post: '+err);
     postBtn.disabled = false;
     progressEl.style.display = 'none';
   }
 });
+
+/* ===== Cancel button ===== */
+cancelBtn.addEventListener('click', ()=>location.href='homepage.html');
+
 </script>
 </body>
 </html>
