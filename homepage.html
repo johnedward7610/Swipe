@@ -4,7 +4,6 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Homepage</title>
-
 <style>
 :root{--primary:#6e8ef5;--accent:#ff6e6e}
 body{font-family:sans-serif;background:#f4f6ff;margin:0;padding:20px;}
@@ -19,11 +18,12 @@ body{font-family:sans-serif;background:#f4f6ff;margin:0;padding:20px;}
 .post-text{margin:12px 0;white-space:pre-wrap}
 .post-images{display:flex;gap:8px;overflow:hidden;flex-wrap:wrap}
 .post-images img, .post-images video{max-height:220px;border-radius:10px;object-fit:cover;cursor:pointer}
-.actions{margin-top:10px;display:flex;gap:8px;align-items:center}
+.actions{margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .btn{padding:8px 12px;border:none;border-radius:8px;cursor:pointer}
 .like-btn{background:var(--accent);color:#fff}
 .comment-btn{background:var(--primary);color:#fff}
 .delete-btn{background:#222;color:#fff}
+.share-btn{background:#888;color:#fff}
 .likes-count{font-weight:700;margin-left:6px}
 .views-count{color:#555;font-size:14px;margin-left:auto}
 .comments-area{margin-top:10px;border-top:1px solid #eee;padding-top:10px}
@@ -32,7 +32,9 @@ body{font-family:sans-serif;background:#f4f6ff;margin:0;padding:20px;}
 .load-more{padding:12px;text-align:center;color:#555}
 .follow-btn{padding:6px 10px;border-radius:8px;border:none;background:#fff;color:var(--primary);cursor:pointer}
 textarea.comment-input{width:100%;padding:8px;border-radius:8px;border:1px solid #ddd;margin-bottom:6px;resize:none}
-
+.taggedUser{color:var(--primary);font-weight:700;cursor:pointer;margin-right:6px}
+.shared-box{margin-top:10px;padding:10px;background:#f0f2ff;border-radius:10px}
+.small-muted{font-size:13px;color:#666;margin-top:6px}
 /* RED DOT FOR NOTIFICATIONS */
 #notifDot {
   position: absolute;
@@ -67,15 +69,16 @@ textarea.comment-input{width:100%;padding:8px;border-radius:8px;border:1px solid
 <div class="floating-post" id="floatingPost" title="Create post">+</div>
 
 <script type="module">
+/* ===== Firebase & imports ===== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { 
-  getAuth, 
-  onAuthStateChanged 
+import {
+  getAuth, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
-import { 
+import {
   getFirestore, collection, query, orderBy, limit, startAfter,
-  getDocs, doc, onSnapshot, deleteDoc, setDoc, getDoc, addDoc 
+  getDocs, doc, onSnapshot, deleteDoc, setDoc, getDoc, addDoc,
+  updateDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -92,16 +95,15 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+/* ===== State & DOM ===== */
 let currentUser = null;
 onAuthStateChanged(auth, user => currentUser = user);
 
-// ---------- Anonymous Device ID for View Tracking ----------
 if (!localStorage.getItem("deviceID")) {
   localStorage.setItem("deviceID", "dev-" + crypto.randomUUID());
 }
 const deviceID = localStorage.getItem("deviceID");
 
-// ---------- DOM ----------
 const postsContainer = document.getElementById('postsContainer');
 const loadMoreEl = document.getElementById('loadMore');
 const floatingPost = document.getElementById('floatingPost');
@@ -109,12 +111,20 @@ const notifDot = document.getElementById("notifDot");
 
 floatingPost.addEventListener('click', ()=>location.href='post.html');
 
-// ==========================
-// NOTIFICATION RED DOT LOGIC
-// ==========================
+/* ===== Notification red dot (friend requests & unread chats & notifications) ===== */
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
   const uid = user.uid;
+
+  // Watch notifications collection for unseen notifications to this user
+  const notifQ = query(collection(db,"notifications"), orderBy("createdAt","desc"));
+  onSnapshot(notifQ, snap=>{
+    const hasNew = snap.docs.some(d=>{
+      const dt = d.data();
+      return dt.to === uid && !dt.seen;
+    });
+    notifDot.style.display = hasNew ? "inline-block" : "none";
+  });
 
   // Friend requests
   onSnapshot(collection(db, "friendRequests"), snap => {
@@ -122,10 +132,10 @@ onAuthStateChanged(auth, async (user) => {
       const data = doc.data();
       return data.to === uid && !data.seen;
     });
-    notifDot.style.display = hasNewReq ? "inline-block" : "none";
+    if (hasNewReq) notifDot.style.display = "inline-block";
   });
 
-  // Unread chats
+  // Unread chats (light check)
   const followingRef = collection(db, "users", uid, "following");
   onSnapshot(followingRef, async snap => {
     let hasUnread = false;
@@ -143,9 +153,7 @@ onAuthStateChanged(auth, async (user) => {
   });
 });
 
-// ==============================
-//          POST LOGIC
-// ==============================
+/* ===== Helpers ===== */
 const PAGE_SIZE = 6;
 let lastVisible = null;
 let loading = false;
@@ -155,34 +163,58 @@ const escapeHtml = s => s?.replace(/[&<>]/g, m=>({'&':'&amp;','<':'&lt;','>':'&g
 const formatTime = ts => { try { return ts?.toDate().toLocaleString() || "Just now" } catch { return "Just now" } };
 
 async function getUserProfile(uid){
+  if(!uid) return null;
   const userDoc = await getDoc(doc(db,'users',uid));
   return userDoc.exists() ? userDoc.data() : null;
 }
 
+/* ===== Render post card (with tags and shared post support) ===== */
 async function renderPostCard(postId, data){
   const card = document.createElement('div');
   card.className = 'post-card';
   card.id = `post-${postId}`;
 
+  // If shared post - fetch original
+  let sharedData = null;
+  if(data.sharedFrom){
+    const sDoc = await getDoc(doc(db,'posts',data.sharedFrom));
+    if(sDoc.exists()) sharedData = { id: sDoc.id, ...sDoc.data() };
+  }
+
   const profile = await getUserProfile(data.uid);
-  const displayName = profile?.fullName || profile?.displayName || 'Unknown';
+  const displayName = profile?.fullName || profile?.displayName || data.name || 'Unknown';
   const photoURL = profile?.photoURL || '';
+
+  // build tagged user placeholders (actual names loaded later)
+  const tagsHtml = (data.tags?.length) ? `<div class="small-muted">Tagged: ${data.tags.map(uid=>`<span class="taggedUser" data-uid="${uid}">@user</span>`).join(" ")}</div>` : "";
+
+  // Post text (show own text and optionally shared content)
+  const ownText = data.text ? `<div class="post-text">${escapeHtml(data.text)}</div>` : "";
+  const sharedHtml = sharedData ? `
+    <div class="shared-box">
+      <div style="font-size:13px;color:#444">Shared post:</div>
+      <div style="font-weight:600;margin-top:6px">${escapeHtml(sharedData.text || "")}</div>
+      ${sharedData.mediaUrls?.length ? `<div class="post-images" id="shared-media-${postId}"></div>` : ""}
+      <div class="small-muted">— by ${await (getUserProfile(sharedData.uid)).then(p=>p?.fullName||p?.displayName||'Unknown')}</div>
+    </div>
+  ` : "";
 
   card.innerHTML = `
     <div class="post-header">
-      <div class="avatar" style="${photoURL?'background-image:url('+photoURL+');background-size:cover;background-position:center':''}">
-        ${photoURL?'':displayName[0].toUpperCase()}
+      <div class="avatar" style="${photoURL ? 'background-image:url('+photoURL+');background-size:cover;background-position:center' : ''}">
+        ${photoURL ? '' : (displayName[0] || 'U').toUpperCase()}
       </div>
-
       <div style="flex:1">
         <div class="post-name" data-uid="${data.uid}">${displayName}</div>
         <div class="post-time">${formatTime(data.createdAt)}</div>
       </div>
-
       ${currentUser?.uid !== data.uid ? `<button class="follow-btn" id="follow-${postId}">Follow</button>` : ""}
     </div>
 
-    <div class="post-text">${escapeHtml(data.text)}</div>
+    ${ownText}
+    ${tagsHtml}
+    ${sharedHtml}
+
     <div class="post-images" id="img-${postId}"></div>
 
     <div class="actions">
@@ -190,6 +222,8 @@ async function renderPostCard(postId, data){
       <span class="likes-count" id="likes-${postId}">0</span>
 
       <button class="btn comment-btn" id="toggle-${postId}">💬 Comment</button>
+
+      <button class="btn share-btn" id="share-${postId}">🔁 Share</button>
 
       <span class="views-count" id="views-${postId}">0 views</span>
 
@@ -203,6 +237,23 @@ async function renderPostCard(postId, data){
     </div>
   `;
 
+  // append shared media if present
+  if(sharedData?.mediaUrls?.length){
+    const sharedMediaBox = card.querySelector(`#shared-media-${postId}`);
+    sharedData.mediaUrls.forEach(url=>{
+      if(url.match(/\.(mp4|webm|ogg)$/)){
+        const vid = document.createElement('video'); vid.src=url; vid.controls=true;
+        vid.style.maxWidth = sharedData.mediaUrls.length===1 ? '100%' : '48%';
+        sharedMediaBox.appendChild(vid);
+      } else {
+        const img = document.createElement('img'); img.src=url;
+        img.style.maxWidth = sharedData.mediaUrls.length===1 ? '100%' : '48%';
+        sharedMediaBox.appendChild(img);
+      }
+    });
+  }
+
+  // append own media
   const imgBox = card.querySelector(`#img-${postId}`);
   if(data.mediaUrls?.length){
     data.mediaUrls.forEach(url=>{
@@ -220,12 +271,25 @@ async function renderPostCard(postId, data){
     });
   }
 
+  // Name click
   card.querySelector('.post-name').onclick = e=>{
     const uid = e.target.dataset.uid;
     location.href = `profile.html?uid=${uid}`;
   };
 
-  // LIKE SYSTEM
+  // Populate tag names (replace @user placeholders)
+  if(data.tags?.length){
+    data.tags.forEach(async (uid) => {
+      const el = card.querySelector(`.taggedUser[data-uid="${uid}"]`);
+      if(el){
+        const p = await getUserProfile(uid);
+        el.textContent = '@' + (p?.fullName || p?.displayName || 'user');
+        el.onclick = ()=> location.href = `profile.html?uid=${uid}`;
+      }
+    });
+  }
+
+  // LIKE system
   const likeBtn = card.querySelector(`#like-${postId}`);
   likeBtn.onclick = async ()=>{
     if(!currentUser) return alert('Login first');
@@ -245,14 +309,13 @@ async function renderPostCard(postId, data){
     };
   }
 
-  // FOLLOW
+  // FOLLOW button
   const fbtn = card.querySelector(`#follow-${postId}`);
   if(fbtn){
     fbtn.onclick = async ()=>{
       if(!currentUser) return alert('Login');
       const follower = doc(db,'users',data.uid,'followers',currentUser.uid);
       const following = doc(db,'users',currentUser.uid,'following',data.uid);
-
       const snap = await getDoc(follower);
       if(snap.exists()){ 
         await deleteDoc(follower); 
@@ -281,7 +344,7 @@ async function renderPostCard(postId, data){
       const div = document.createElement('div');
       div.className='comment-card';
       div.innerHTML=`
-        <div style="font-weight:700">${d.name}</div>
+        <div style="font-weight:700">${escapeHtml(d.name||d.uid)}</div>
         <div style="font-size:12px;color:#666">${formatTime(d.createdAt)}</div>
         <div>${escapeHtml(d.text)}</div>`;
       list.appendChild(div);
@@ -292,7 +355,6 @@ async function renderPostCard(postId, data){
     if(!currentUser) return alert('Login first');
     const txt = card.querySelector(`#cinput-${postId}`).value.trim();
     if(!txt) return;
-
     await addDoc(collection(db,'posts',postId,'comments'),{
       uid:currentUser.uid,
       name:currentUser.displayName||currentUser.email||'Unknown',
@@ -300,6 +362,22 @@ async function renderPostCard(postId, data){
       createdAt:new Date()
     });
     card.querySelector(`#cinput-${postId}`).value='';
+  };
+
+  // SHARE
+  const shareBtn = card.querySelector(`#share-${postId}`);
+  shareBtn.onclick = async ()=>{
+    if(!currentUser) return alert("Login first");
+    // create a lightweight shared post that references sharedFrom
+    await addDoc(collection(db,'posts'),{
+      uid: currentUser.uid,
+      name: currentUser.displayName || currentUser.email,
+      text: '',
+      createdAt: serverTimestamp(),
+      mediaUrls: [],
+      sharedFrom: postId
+    });
+    alert("Post shared!");
   };
 
   // VIEW COUNTER
@@ -317,6 +395,7 @@ async function renderPostCard(postId, data){
   postsContainer.appendChild(card);
 }
 
+/* ===== Load posts with pagination ===== */
 async function loadPosts(initial=false){
   if(loading || finished) return;
   loading = true;
@@ -339,13 +418,16 @@ async function loadPosts(initial=false){
   loading=false;
 }
 
+/* ===== Infinite scroll ===== */
 window.addEventListener('scroll',()=>{
   if((window.innerHeight + window.scrollY) >= document.body.offsetHeight-120){
     loadPosts();
   }
 });
 
+/* ===== Initial load ===== */
 loadPosts(true);
+
 </script>
 </body>
 </html>
