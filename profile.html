@@ -3,16 +3,10 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Profile — Single File</title>
+<title>Profile</title>
 <style>
 :root{
-  --dark-bg: #0f1720;
-  --card: #111219;
-  --muted: #9aa4b2;
-  --accent: #6e8ef5;
-  --accent-hover: #5A67D8;
-  --radius: 12px;
-  --gap: 16px;
+  --dark-bg:#0f1720;--card:#111219;--muted:#9aa4b2;--accent:#6e8ef5;--accent-hover:#5A67D8;--radius:12px;
 }
 body{margin:0;font-family:Inter,sans-serif;background:var(--dark-bg);color:#e6eef8;padding:20px;}
 #page{max-width:980px;margin:0 auto;}
@@ -39,6 +33,9 @@ body{margin:0;font-family:Inter,sans-serif;background:var(--dark-bg);color:#e6ee
 .photo-item{background: rgba(255,255,255,0.01);height:80px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-weight:600;overflow:hidden;position:relative;}
 .photo-item img, .photo-item video{width:100%;height:100%;object-fit:cover;border-radius:8px;}
 .photo-item:hover{transform:scale(1.05);transition:0.2s;}
+.posts-list{margin-top:16px;}
+.post-card{background: rgba(255,255,255,0.02);padding:12px;border-radius:10px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.03);}
+.post-card img, .post-card video{max-height:160px;border-radius:8px;display:block;margin-top:8px;width:100%;}
 @media(max-width:640px){#about-grid{grid-template-columns:1fr;} .stats-grid{grid-template-columns:repeat(3,1fr);}}
 </style>
 </head>
@@ -51,7 +48,12 @@ body{margin:0;font-family:Inter,sans-serif;background:var(--dark-bg);color:#e6ee
         <div class="profile-info">
           <input type="text" id="nameInput" placeholder="Your name" />
           <div id="email" class="small"></div>
-          <div style="margin-top:8px"><span id="followersCount">0</span> followers · <span id="followingCount">0</span> following</div>
+          <div style="margin-top:8px">
+            <span id="followersCount">0</span> followers · <span id="followingCount">0</span> following
+          </div>
+          <div style="margin-top:4px">
+            Status: <span id="relationshipStatus" class="small">—</span>
+          </div>
         </div>
       </div>
       <div class="controls">
@@ -81,18 +83,9 @@ body{margin:0;font-family:Inter,sans-serif;background:var(--dark-bg);color:#e6ee
       <div class="stats">
         <h3 class="section-title">Quick Stats</h3>
         <div class="stats-grid">
-          <div class="stat">
-            <div class="num" id="statFollowers">0</div>
-            <div class="label">Followers</div>
-          </div>
-          <div class="stat">
-            <div class="num" id="statFollowing">0</div>
-            <div class="label">Following</div>
-          </div>
-          <div class="stat">
-            <div class="num" id="statViews">0</div>
-            <div class="label">Views this Week</div>
-          </div>
+          <div class="stat"><div class="num" id="statFollowers">0</div><div class="label">Followers</div></div>
+          <div class="stat"><div class="num" id="statFollowing">0</div><div class="label">Following</div></div>
+          <div class="stat"><div class="num" id="statViews">0</div><div class="label">Views this Week</div></div>
         </div>
       </div>
     </div>
@@ -103,11 +96,14 @@ body{margin:0;font-family:Inter,sans-serif;background:var(--dark-bg);color:#e6ee
         <div class="photo-item">Blank</div>
         <div class="photo-item">Blank</div>
         <div class="photo-item">Blank</div>
-        <div class="photo-item hidden">Blank</div>
-        <div class="photo-item hidden">Blank</div>
-        <div class="photo-item hidden">Blank</div>
       </div>
     </div>
+
+    <div id="posts">
+      <h3 class="section-title">Posts</h3>
+      <div id="userPosts" class="posts-list">Loading posts…</div>
+    </div>
+
     <input type="file" id="pfpInput" style="display:none" accept="image/*"/>
   </div>
 </div>
@@ -115,96 +111,108 @@ body{margin:0;font-family:Inter,sans-serif;background:var(--dark-bg);color:#e6ee
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, getDocs, collection, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
-  authDomain: "swipe-f90ed.firebaseapp.com",
-  projectId: "swipe-f90ed",
-  storageBucket: "swipe-f90ed.appspot.com",
-  messagingSenderId: "360540214416",
-  appId: "1:360540214416:web:3e92fe77e5c93283d47415",
-  measurementId: "G-4SV32V4N0N"
+  apiKey:"AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
+  authDomain:"swipe-f90ed.firebaseapp.com",
+  projectId:"swipe-f90ed",
+  storageBucket:"swipe-f90ed.appspot.com",
+  messagingSenderId:"360540214416",
+  appId:"1:360540214416:web:3e92fe77e5c93283d47415",
+  measurementId:"G-4SV32V4N0N"
 };
-
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-let currentUser = null;
+let currentUser=null;
 const profileUid = new URLSearchParams(window.location.search).get('uid');
 
-const nameInput = document.getElementById('nameInput');
-const emailEl = document.getElementById('email');
-const avatarEl = document.getElementById('avatar');
-const followersCountEl = document.getElementById('followersCount');
-const followingCountEl = document.getElementById('followingCount');
-const followBtn = document.getElementById('followBtn');
-const chatBtn = document.getElementById('chatBtn');
-const updateBtn = document.getElementById('updateBtn');
-const changePfpBtn = document.getElementById('changePfpBtn');
-const homeBtn = document.getElementById('homeBtn');
-const aboutText = document.getElementById('aboutText');
-const locationEl = document.getElementById('location');
-const joinedEl = document.getElementById('joined');
-const statFollowers = document.getElementById('statFollowers');
-const statFollowing = document.getElementById('statFollowing');
-const statViews = document.getElementById('statViews');
-const pfpInput = document.getElementById('pfpInput');
+const nameInput=document.getElementById('nameInput');
+const emailEl=document.getElementById('email');
+const avatarEl=document.getElementById('avatar');
+const followersCountEl=document.getElementById('followersCount');
+const followingCountEl=document.getElementById('followingCount');
+const followBtn=document.getElementById('followBtn');
+const chatBtn=document.getElementById('chatBtn');
+const updateBtn=document.getElementById('updateBtn');
+const changePfpBtn=document.getElementById('changePfpBtn');
+const homeBtn=document.getElementById('homeBtn');
+const aboutText=document.getElementById('aboutText');
+const locationEl=document.getElementById('location');
+const joinedEl=document.getElementById('joined');
+const statFollowers=document.getElementById('statFollowers');
+const statFollowing=document.getElementById('statFollowing');
+const statViews=document.getElementById('statViews');
+const pfpInput=document.getElementById('pfpInput');
+const relationshipStatusEl=document.getElementById('relationshipStatus');
+const userPosts=document.getElementById('userPosts');
 
-homeBtn.onclick = () => location.href='homepage.html';
-changePfpBtn.onclick = () => pfpInput.click();
-pfpInput.onchange = async e => {
-  if(!currentUser) return alert('Login first');
-  const file = e.target.files[0];
-  if(!file) return;
-  const url = URL.createObjectURL(file);
-  avatarEl.style.backgroundImage = `url(${url})`; avatarEl.textContent='';
-  alert('Local preview updated. Upload logic can be added.');
-};
+homeBtn.onclick=()=>location.href='homepage.html';
+changePfpBtn.onclick=()=>pfpInput.click();
+pfpInput.onchange=e=>{const file=e.target.files[0]; if(!file)return; const url=URL.createObjectURL(file); avatarEl.style.backgroundImage=`url(${url})`; avatarEl.textContent=''; alert('Local preview updated. Upload logic can be added.')};
 
-onAuthStateChanged(auth, async user => {
-  if(!user) return location.href='index.html';
-  currentUser = user;
-  const uid = profileUid || currentUser.uid;
-  const userDoc = await getDoc(doc(db,'users',uid));
-  const profile = userDoc.exists() ? userDoc.data() : {};
+onAuthStateChanged(auth,async user=>{
+if(!user)return location.href='index.html';
+currentUser=user;
+const uid=profileUid||currentUser.uid;
+const userDocRef=doc(db,'users',uid);
+const userDoc=await getDoc(userDocRef);
+const profile=userDoc.exists()?userDoc.data():{};
 
-  nameInput.value = profile?.fullName || currentUser.displayName || '';
-  emailEl.textContent = profile?.email || currentUser.email || '';
-  aboutText.textContent = profile?.about || 'No bio yet.';
-  locationEl.textContent = profile?.location || 'Unknown';
-  joinedEl.textContent = profile?.joined ? new Date(profile.joined.seconds*1000).toLocaleDateString() : (profile?.createdAt ? new Date(profile.createdAt.seconds*1000).toLocaleDateString() : '—');
+nameInput.value=profile?.fullName||currentUser.displayName||'';
+emailEl.textContent=profile?.email||currentUser.email||'';
+aboutText.textContent=profile?.about||'No bio yet.';
+locationEl.textContent=profile?.location||'Unknown';
+relationshipStatusEl.textContent=profile?.relationship||'—';
+joinedEl.textContent=profile?.joined?new Date(profile.joined.seconds*1000).toLocaleDateString():(profile?.createdAt?new Date(profile.createdAt.seconds*1000).toLocaleDateString():'—');
 
-  if(profile?.photoURL){ avatarEl.style.backgroundImage=`url(${profile.photoURL})`; avatarEl.textContent=''; }
-  else avatarEl.textContent = (nameInput.value[0]||'U').toUpperCase();
+if(profile?.photoURL){avatarEl.style.backgroundImage=`url(${profile.photoURL})`; avatarEl.textContent='';}
+else avatarEl.textContent=(nameInput.value[0]||'U').toUpperCase();
 
-  if(currentUser.uid !== uid){
-    chatBtn.style.display='inline-flex';
-    chatBtn.onclick = ()=>{
-      localStorage.setItem("chatWithUid", uid);
-      localStorage.setItem("chatWithName", nameInput.value || 'User');
-      window.location.href='chat.html';
-    };
-  } else {
-    followBtn.style.display='none';
-    chatBtn.style.display='none';
-    updateBtn.onclick = async ()=>{
-      const newName = nameInput.value.trim();
-      if(!newName) return alert('Name cannot be empty');
-      await updateProfile(currentUser,{displayName:newName});
-      await setDoc(doc(db,'users',currentUser.uid),{fullName:newName},{merge:true});
-      alert('Profile updated!');
-    };
-  }
+if(currentUser.uid!==uid){
+chatBtn.style.display='inline-flex';
+chatBtn.onclick=()=>{localStorage.setItem("chatWithUid",uid); localStorage.setItem("chatWithName",nameInput.value||'User'); window.location.href='chat.html';};
+followBtn.style.display='inline-flex';
+}else{
+followBtn.style.display='none';
+chatBtn.style.display='none';
+updateBtn.onclick=async()=>{
+const newName=nameInput.value.trim();
+const newRelationship=prompt('Update relationship status (Single / In a Relationship)',relationshipStatusEl.textContent);
+if(newRelationship)relationshipStatusEl.textContent=newRelationship;
+await updateProfile(currentUser,{displayName:newName});
+await setDoc(userDocRef,{fullName:newName,relationship:newRelationship},{merge:true});
+alert('Profile updated!');
+}};
 
-  const followersSnap = await getDocs(collection(db,'users',uid,'followers'));
-  const followingSnap = await getDocs(collection(db,'users',uid,'following'));
-  followersCountEl.textContent = followersSnap.size;
-  followingCountEl.textContent = followingSnap.size;
-  statFollowers.textContent = followersSnap.size;
-  statFollowing.textContent = followingSnap.size;
+const followersSnap=await getDocs(collection(db,'users',uid,'followers'));
+const followingSnap=await getDocs(collection(db,'users',uid,'following'));
+followersCountEl.textContent=followersSnap.size;
+followingCountEl.textContent=followingSnap.size;
+statFollowers.textContent=followersSnap.size;
+statFollowing.textContent=followingSnap.size;
+
+// Load posts
+const postsCol=collection(db,'posts');
+const postsQuery=query(postsCol,where('uid','==',uid),orderBy('createdAt','desc'));
+const postsSnap=await getDocs(postsQuery);
+userPosts.innerHTML='';
+if(postsSnap.empty)userPosts.textContent='No posts yet';
+else postsSnap.forEach(d=>{
+const p=d.data();
+const div=document.createElement('div'); div.className='post-card';
+const title=document.createElement('div'); title.style.fontWeight='700'; title.textContent=p.name||nameInput.value||'User';
+const text=document.createElement('div'); text.style.marginTop='6px'; text.textContent=p.text||'';
+div.appendChild(title); div.appendChild(text);
+if(p.mediaUrls?.length)p.mediaUrls.forEach(url=>{
+if(url.match(/\.(mp4|webm|ogg)$/i)){const video=document.createElement('video'); video.src=url; video.controls=true; video.style.width='100%'; video.style.borderRadius='8px'; div.appendChild(video);}
+else{const img=document.createElement('img'); img.src=url; div.appendChild(img);}
+});
+userPosts.appendChild(div);
+});
 });
 </script>
 </body>
-</html>
+  </html>
