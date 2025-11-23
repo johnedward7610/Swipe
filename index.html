@@ -1,38 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Swipe Auth</title>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  sendPasswordResetEmail,
-  signOut
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-
-// ----- Firebase Config -----
-const firebaseConfig = {
-  apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
-  authDomain: "swipe-f90ed.firebaseapp.com",
-  projectId: "swipe-f90ed",
-  storageBucket: "swipe-f90ed.appspot.com",
-  messagingSenderId: "360540214416",
-  appId: "1:360540214416:web:3e92fe77e5c93283d47415",
-  measurementId: "G-4SV32V4N0N"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-window.auth = auth;
-window.db = db;
-</script>
 
 <style>
 *{box-sizing:border-box;}
@@ -149,8 +120,29 @@ body.dark{
 </div>
 
 <script type="module">
-const auth = window.auth;
-const db = window.db;
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+// ----- Firebase Config -----
+const firebaseConfig = {
+  apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
+  authDomain: "swipe-f90ed.firebaseapp.com",
+  projectId: "swipe-f90ed",
+  storageBucket: "swipe-f90ed.appspot.com",
+  messagingSenderId: "360540214416",
+  appId: "1:360540214416:web:3e92fe77e5c93283d47415",
+  measurementId: "G-4SV32V4N0N"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
 // --- DOM Elements ---
 const authBox = document.getElementById("authBox");
@@ -192,13 +184,11 @@ themeToggle.addEventListener("click", () => {
   themeToggle.textContent = document.body.classList.contains("dark") ? "☀" : "🌙";
 });
 
-// --- SIGNUP WITH OTP ---
+// --- SIGNUP + OTP ---
 let currentUserId = null;
 let currentOtp = null;
 
-function generateOtp() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
+function generateOtp(){ return Math.floor(100000 + Math.random() * 900000).toString(); }
 
 document.getElementById("registerBtn").addEventListener("click", async () => {
   const fullName = document.getElementById("signupName").value.trim();
@@ -206,40 +196,34 @@ document.getElementById("registerBtn").addEventListener("click", async () => {
   const gender = document.getElementById("signupGender").value;
   const password = document.getElementById("signupPassword").value;
   const confirmPassword = document.getElementById("signupConfirmPassword").value;
-
-  if (!fullName || !email || !gender || !password || !confirmPassword) { alert("Fill all fields"); return; }
-  if (password !== confirmPassword) { alert("Passwords do not match"); return; }
+  if(!fullName||!email||!gender||!password||!confirmPassword){alert("Fill all fields"); return;}
+  if(password!==confirmPassword){alert("Passwords do not match"); return;}
 
   try {
     const userCredential = await createUserWithEmailAndPassword(auth,email,password);
     const user = userCredential.user;
     currentUserId = user.uid;
     currentOtp = generateOtp();
-
-    await setDoc(doc(db,"users",user.uid), {
-      fullName, email, gender, createdAt: new Date(),
-      otp: currentOtp
+    await setDoc(doc(db,"users",user.uid),{
+      fullName,email,gender,createdAt:new Date(),otp:currentOtp
     });
-
-    // TODO: send `currentOtp` via email using Cloud Function or SMTP
-    console.log("OTP for testing (send via email in prod):", currentOtp);
-
-    signupSection.style.display = "none";
-    otpSection.style.display = "block";
-  } catch(e){ alert(e.message); }
+    console.log("OTP (for testing, replace with email):", currentOtp);
+    signupSection.style.display="none";
+    otpSection.style.display="block";
+  } catch(e){alert(e.message);}
 });
 
 // --- VERIFY OTP ---
 document.getElementById("verifyOtpBtn").addEventListener("click", async () => {
   const otpInput = document.getElementById("otpInput").value.trim();
-  if (otpInput === currentOtp) {
-    otpMessage.className = "message success";
-    otpMessage.textContent = "OTP verified! You can log in now.";
-    otpSection.style.display = "none";
-    loginSection.style.display = "block";
+  if(otpInput===currentOtp){
+    otpMessage.className="message success";
+    otpMessage.textContent="OTP verified! You can log in now.";
+    otpSection.style.display="none";
+    loginSection.style.display="block";
   } else {
-    otpMessage.className = "message error";
-    otpMessage.textContent = "Incorrect OTP. Try again.";
+    otpMessage.className="message error";
+    otpMessage.textContent="Incorrect OTP. Try again.";
   }
 });
 
@@ -247,26 +231,24 @@ document.getElementById("verifyOtpBtn").addEventListener("click", async () => {
 document.getElementById("loginBtn").addEventListener("click", async () => {
   const email = document.getElementById("loginEmail").value.trim();
   const password = document.getElementById("loginPassword").value;
-  if(!email || !password) { alert("Enter email and password."); return; }
-
-  try {
+  if(!email||!password){alert("Enter email and password.");return;}
+  try{
     await signInWithEmailAndPassword(auth,email,password);
     alert("Logged in successfully!");
     window.location.href="profile.html";
-  } catch(e){ alert(e.message); }
+  }catch(e){alert(e.message);}
 });
 
 // --- PASSWORD RESET ---
 document.getElementById("sendResetBtn").addEventListener("click", async () => {
   const email = document.getElementById("forgotEmail").value.trim();
   if(!email){ resetMessage.className="message error"; resetMessage.textContent="Enter your email."; return; }
-
-  try {
+  try{
     await sendPasswordResetEmail(auth,email);
     resetMessage.className="message success";
     resetMessage.textContent="Password reset link sent! Check your email.";
-  } catch(e){ resetMessage.className="message error"; resetMessage.textContent=e.message; }
+  }catch(e){ resetMessage.className="message error"; resetMessage.textContent=e.message; }
 });
 </script>
 </body>
-          </html>
+</html>
