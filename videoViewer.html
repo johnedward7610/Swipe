@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Viewer</title>
+<style>
+body {
+  margin:0;
+  background:black;
+  overflow:hidden;
+  height:100vh;
+}
+
+#container {
+  height:100vh;
+  width:100%;
+  overflow-y:scroll;
+  scroll-snap-type:y mandatory;
+}
+
+.video-wrapper {
+  height:100vh;
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  scroll-snap-align:start;
+  position:relative;
+}
+
+video {
+  max-height:100%;
+  max-width:100%;
+}
+
+.back-btn {
+  position:fixed;
+  top:20px;
+  left:20px;
+  background:rgba(0,0,0,0.5);
+  color:white;
+  padding:10px 14px;
+  border-radius:8px;
+  z-index:999;
+  cursor:pointer;
+  font-size:16px;
+}
+</style>
+</head>
+<body>
+
+<div class="back-btn" onclick="history.back()">← Back</div>
+
+<div id="container"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getFirestore, collection, getDocs
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
+  authDomain: "swipe-f90ed.firebaseapp.com",
+  projectId: "swipe-f90ed",
+  storageBucket: "swipe-f90ed.appspot.com",
+  messagingSenderId: "360540214416",
+  appId: "1:360540214416:web:3e92fe77e5c93283d47415",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const container = document.getElementById("container");
+
+// Which video to show first
+const startVideo = sessionStorage.getItem("startVideo");
+
+async function loadVideos() {
+  const snap = await getDocs(collection(db, "posts"));
+  let videos = [];
+
+  snap.forEach(doc => {
+    const data = doc.data();
+    if (data.mediaUrls) {
+      data.mediaUrls.forEach(url => {
+        if (url.match(/\.(mp4|webm|ogg)$/)) {
+          videos.push(url);
+        }
+      });
+    }
+  });
+
+  // Move the clicked video to the beginning
+  if (startVideo) {
+    videos = [startVideo, ...videos.filter(v => v !== startVideo)];
+  }
+
+  // Render
+  videos.forEach(url => {
+    const wrap = document.createElement("div");
+    wrap.className = "video-wrapper";
+    wrap.innerHTML = `<video src="${url}" playsinline></video>`;
+    container.appendChild(wrap);
+  });
+
+  autoplayVideos();
+}
+
+function autoplayVideos() {
+  const all = [...document.querySelectorAll("video")];
+
+  function playVisible() {
+    all.forEach(v => {
+      let rect = v.getBoundingClientRect();
+      if (rect.top >= 0 && rect.bottom <= window.innerHeight) {
+        v.play();
+      } else {
+        v.pause();
+      }
+    });
+  }
+
+  container.addEventListener("scroll", playVisible);
+  playVisible();
+}
+
+loadVideos();
+</script>
+
+</body>
+  </html>
