@@ -6,35 +6,39 @@
 <title>Swipe Auth</title>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
-  signInWithEmailAndPassword,
-  sendPasswordResetEmail
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+  // ----- FIREBASE IMPORTS -----
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getAuth,
+    createUserWithEmailAndPassword,
+    sendEmailVerification,
+    signInWithEmailAndPassword,
+    sendPasswordResetEmail
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+  import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
-  authDomain: "swipe-f90ed.firebaseapp.com",
-  projectId: "swipe-f90ed",
-  storageBucket: "swipe-f90ed.appspot.com",
-  messagingSenderId: "360540214416",
-  appId: "1:360540214416:web:3e92fe77e5c93283d47415",
-  measurementId: "G-4SV32V4N0N"
-};
+  // ----- FIREBASE CONFIG -----
+  const firebaseConfig = {
+    apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
+    authDomain: "swipe-f90ed.firebaseapp.com",
+    projectId: "swipe-f90ed",
+    storageBucket: "swipe-f90ed.appspot.com",
+    messagingSenderId: "360540214416",
+    appId: "1:360540214416:web:3e92fe77e5c93283d47415",
+    measurementId: "G-4SV32V4N0N"
+  };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-window.auth = auth;
-window.db = db;
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // Expose auth/db if needed
+  window.auth = auth;
+  window.db = db;
 </script>
 
 <style>
-/* BASE STYLES */
+/* ----- BASE STYLES ----- */
 *{box-sizing:border-box;}
 body{margin:0;font-family:Inter,sans-serif;transition:background 0.3s,color 0.3s;}
 :root{--bg:#f4f6ff;--card-bg:#fff;--text:#1b1b1b;--subtext:#555;--primary:#6e8ef5;--primary-light:#a8b7ff;--input-bg:#fff;--input-border:#ccc;--input-text:#222;}
@@ -53,6 +57,9 @@ body.dark{--bg:#0f1117;--card-bg:#141821;--text:#fff;--subtext:#b9b9b9;--primary
 .switch-link{display:block;text-align:center;margin-top:14px;color:var(--primary);font-size:14px;cursor:pointer;}
 .theme-toggle{position:absolute;top:14px;right:14px;background:transparent;border:none;cursor:pointer;font-size:22px;color:var(--text);}
 #forgotPasswordSection{display:none;}
+.message{margin-top:10px;font-size:14px;}
+.message.success{color:green;}
+.message.error{color:red;}
 </style>
 </head>
 <body>
@@ -65,7 +72,6 @@ body.dark{--bg:#0f1117;--card-bg:#141821;--text:#fff;--subtext:#b9b9b9;--primary
     <div id="loginSection">
       <h2 class="auth-title">Welcome Back</h2>
       <p class="auth-desc">Log in to continue your journey.</p>
-
       <div class="input-group">
         <label>Email</label>
         <input type="email" id="loginEmail" placeholder="Enter your email" required/>
@@ -74,7 +80,6 @@ body.dark{--bg:#0f1117;--card-bg:#141821;--text:#fff;--subtext:#b9b9b9;--primary
         <label>Password</label>
         <input type="password" id="loginPassword" placeholder="Enter your password" required/>
       </div>
-
       <button class="auth-btn" id="loginBtn">Log In</button>
       <span class="switch-link" id="goSignup">Don't have an account? Sign up</span>
       <span class="switch-link" id="goForgotPassword">Forgot password?</span>
@@ -84,7 +89,6 @@ body.dark{--bg:#0f1117;--card-bg:#141821;--text:#fff;--subtext:#b9b9b9;--primary
     <div id="signupSection" style="display:none;">
       <h2 class="auth-title">Create Account</h2>
       <p class="auth-desc">Join us and start your journey in Swipe today.</p>
-
       <div class="input-group">
         <label>Full Name</label>
         <input type="text" id="signupName" placeholder="Enter your full name" required/>
@@ -110,7 +114,6 @@ body.dark{--bg:#0f1117;--card-bg:#141821;--text:#fff;--subtext:#b9b9b9;--primary
         <label>Confirm Password</label>
         <input type="password" id="signupConfirmPassword" placeholder="Confirm your password" required/>
       </div>
-
       <button class="auth-btn" id="registerBtn">Create Account</button>
       <span class="switch-link" id="goLogin">Already have an account? Log in</span>
     </div>
@@ -119,112 +122,118 @@ body.dark{--bg:#0f1117;--card-bg:#141821;--text:#fff;--subtext:#b9b9b9;--primary
     <div id="forgotPasswordSection">
       <h2 class="auth-title">Forgot Password</h2>
       <p class="auth-desc">Enter your email to reset password.</p>
-
       <div class="input-group">
         <label>Email</label>
         <input type="email" id="forgotEmail" placeholder="Enter your email" required/>
       </div>
       <button class="auth-btn" id="sendResetBtn">Send Reset Link</button>
+      <p id="resetMessage" class="message"></p>
       <span class="switch-link" id="backToLogin">Back to Login</span>
     </div>
-
   </div>
 </div>
 
 <script type="module">
-const auth = window.auth;
-const db = window.db;
+  const auth = window.auth;
+  const db = window.db;
 
-// FORM SWITCHING
-const loginSection = document.getElementById("loginSection");
-const signupSection = document.getElementById("signupSection");
-const forgotSection = document.getElementById("forgotPasswordSection");
-const authBox = document.getElementById("authBox");
+  // ---- FORM SWITCHING ----
+  const loginSection = document.getElementById("loginSection");
+  const signupSection = document.getElementById("signupSection");
+  const forgotSection = document.getElementById("forgotPasswordSection");
+  const authBox = document.getElementById("authBox");
 
-document.getElementById("goSignup").addEventListener("click", () => {
-  authBox.classList.add("expand");
-  loginSection.style.display = "none";
-  signupSection.style.display = "block";
-});
-document.getElementById("goLogin").addEventListener("click", () => {
-  authBox.classList.remove("expand");
-  signupSection.style.display = "none";
-  forgotSection.style.display = "none";
-  loginSection.style.display = "block";
-});
-document.getElementById("goForgotPassword").addEventListener("click", () => {
-  loginSection.style.display = "none";
-  forgotSection.style.display = "block";
-});
-document.getElementById("backToLogin").addEventListener("click", () => {
-  forgotSection.style.display = "none";
-  loginSection.style.display = "block";
-});
-
-// DARK MODE
-const themeToggle = document.getElementById("themeToggle");
-themeToggle.addEventListener("click", () => {
-  document.body.classList.toggle("dark");
-  themeToggle.textContent = document.body.classList.contains("dark") ? "☀" : "🌙";
-});
-
-// SIGNUP with OTP email verification
-document.getElementById("registerBtn").addEventListener("click", async () => {
-  const fullName = document.getElementById("signupName").value.trim();
-  const email = document.getElementById("signupEmail").value.trim();
-  const gender = document.getElementById("signupGender").value;
-  const password = document.getElementById("signupPassword").value;
-  const confirmPassword = document.getElementById("signupConfirmPassword").value;
-
-  if (!fullName || !email || !gender || !password || !confirmPassword) { alert("Fill all fields"); return; }
-  if (password !== confirmPassword) { alert("Passwords do not match"); return; }
-
-  try {
-    const userCredential = await createUserWithEmailAndPassword(auth,email,password);
-    const user = userCredential.user;
-
-    await setDoc(doc(db,"users",user.uid), { fullName, email, gender, createdAt: new Date() });
-    await sendEmailVerification(user);
-
-    alert("Registered! Check your email for verification link.");
-    auth.signOut(); // require verification
-    loginSection.style.display = "block";
+  document.getElementById("goSignup").addEventListener("click", () => {
+    authBox.classList.add("expand");
+    loginSection.style.display = "none";
+    signupSection.style.display = "block";
+  });
+  document.getElementById("goLogin").addEventListener("click", () => {
+    authBox.classList.remove("expand");
     signupSection.style.display = "none";
-  } catch (e) { alert(e.message); }
-});
-
-// LOGIN
-document.getElementById("loginBtn").addEventListener("click", async () => {
-  const email = document.getElementById("loginEmail").value.trim();
-  const password = document.getElementById("loginPassword").value;
-
-  if (!email || !password) { alert("Enter email and password."); return; }
-
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth,email,password);
-    if(!userCredential.user.emailVerified){ 
-      alert("Please verify your email first."); 
-      auth.signOut(); 
-      return;
-    }
-    alert("Logged in successfully!");
-    window.location.href="profile.html";
-  } catch(e){ alert(e.message); }
-});
-
-// FORGOT PASSWORD
-document.getElementById("sendResetBtn").addEventListener("click", async () => {
-  const email = document.getElementById("forgotEmail").value.trim();
-  if(!email){ alert("Enter your email."); return; }
-
-  try {
-    await sendPasswordResetEmail(auth,email);
-    alert("Password reset link sent! Check your email.");
     forgotSection.style.display = "none";
     loginSection.style.display = "block";
-  } catch(e){ alert(e.message); }
-});
+  });
+  document.getElementById("goForgotPassword").addEventListener("click", () => {
+    loginSection.style.display = "none";
+    forgotSection.style.display = "block";
+    authBox.classList.add("expand");
+  });
+  document.getElementById("backToLogin").addEventListener("click", () => {
+    forgotSection.style.display = "none";
+    loginSection.style.display = "block";
+    authBox.classList.remove("expand");
+  });
+
+  // ---- DARK MODE ----
+  const themeToggle = document.getElementById("themeToggle");
+  themeToggle.addEventListener("click", () => {
+    document.body.classList.toggle("dark");
+    themeToggle.textContent = document.body.classList.contains("dark") ? "☀" : "🌙";
+  });
+
+  // ---- SIGNUP ----
+  document.getElementById("registerBtn").addEventListener("click", async () => {
+    const fullName = document.getElementById("signupName").value.trim();
+    const email = document.getElementById("signupEmail").value.trim();
+    const gender = document.getElementById("signupGender").value;
+    const password = document.getElementById("signupPassword").value;
+    const confirmPassword = document.getElementById("signupConfirmPassword").value;
+
+    if (!fullName || !email || !gender || !password || !confirmPassword) { alert("Fill all fields"); return; }
+    if (password !== confirmPassword) { alert("Passwords do not match"); return; }
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth,email,password);
+      const user = userCredential.user;
+      await setDoc(doc(db,"users",user.uid), { fullName, email, gender, createdAt: new Date() });
+      await sendEmailVerification(user);
+      alert("Registered! Check your email for verification link.");
+      auth.signOut();
+      loginSection.style.display = "block";
+      signupSection.style.display = "none";
+    } catch (e) { alert(e.message); }
+  });
+
+  // ---- LOGIN ----
+  document.getElementById("loginBtn").addEventListener("click", async () => {
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+    if (!email || !password) { alert("Enter email and password."); return; }
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth,email,password);
+      if(!userCredential.user.emailVerified){ 
+        alert("Please verify your email first."); 
+        auth.signOut(); 
+        return;
+      }
+      alert("Logged in successfully!");
+      window.location.href="profile.html";
+    } catch(e){ alert(e.message); }
+  });
+
+  // ---- FORGOT PASSWORD ----
+  const resetMessage = document.getElementById("resetMessage");
+  document.getElementById("sendResetBtn").addEventListener("click", async () => {
+    const email = document.getElementById("forgotEmail").value.trim();
+    if(!email){ 
+      resetMessage.className = "message error";
+      resetMessage.textContent = "Enter your email.";
+      return; 
+    }
+    try {
+      await sendPasswordResetEmail(auth,email, {
+        url: window.location.origin + "/login.html"
+      });
+      resetMessage.className = "message success";
+      resetMessage.textContent = "Password reset link sent! Check your email.";
+    } catch(e){ 
+      resetMessage.className = "message error";
+      resetMessage.textContent = e.message;
+    }
+  });
 </script>
 
 </body>
-</html>
+  </html>
