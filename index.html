@@ -5,44 +5,48 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Swipe Auth</title>
 
+<!-- FIREBASE MODULE -->
 <script type="module">
-  // ----- FIREBASE IMPORTS -----
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-  import {
-    getAuth,
-    createUserWithEmailAndPassword,
-    sendEmailVerification,
-    signInWithEmailAndPassword,
-    sendPasswordResetEmail
-  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-  import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
-  // ----- FIREBASE CONFIG -----
-  const firebaseConfig = {
-    apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
-    authDomain: "swipe-f90ed.firebaseapp.com",
-    projectId: "swipe-f90ed",
-    storageBucket: "swipe-f90ed.appspot.com",
-    messagingSenderId: "360540214416",
-    appId: "1:360540214416:web:3e92fe77e5c93283d47415",
-    measurementId: "G-4SV32V4N0N"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
+  authDomain: "swipe-f90ed.firebaseapp.com",
+  projectId: "swipe-f90ed",
+  storageBucket: "swipe-f90ed.appspot.com",
+  messagingSenderId: "360540214416",
+  appId: "1:360540214416:web:3e92fe77e5c93283d47415",
+  measurementId: "G-4SV32V4N0N"
+};
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-  // Expose auth/db if needed
-  window.auth = auth;
-  window.db = db;
+window.auth = auth;
+window.db = db;
 </script>
 
 <style>
-/* ----- BASE STYLES ----- */
+/* ===== GLOBAL STYLES ===== */
 *{box-sizing:border-box;}
 body{margin:0;font-family:Inter,sans-serif;transition:background 0.3s,color 0.3s;}
-:root{--bg:#f4f6ff;--card-bg:#fff;--text:#1b1b1b;--subtext:#555;--primary:#6e8ef5;--primary-light:#a8b7ff;--input-bg:#fff;--input-border:#ccc;--input-text:#222;}
-body.dark{--bg:#0f1117;--card-bg:#141821;--text:#fff;--subtext:#b9b9b9;--primary:#6e8ef5;--primary-light:#8ea2ff;--input-bg:#1c2030;--input-border:#2c3142;--input-text:#e8e8e8;}
+:root{
+  --bg:#f4f6ff;--card-bg:#fff;--text:#1b1b1b;--subtext:#555;--primary:#6e8ef5;--primary-light:#a8b7ff;
+  --input-bg:#fff;--input-border:#ccc;--input-text:#222;
+}
+body.dark{
+  --bg:#0f1117;--card-bg:#141821;--text:#fff;--subtext:#b9b9b9;--primary:#6e8ef5;--primary-light:#8ea2ff;
+  --input-bg:#1c2030;--input-border:#2c3142;--input-text:#e8e8e8;
+}
 .auth-container{min-height:100vh;display:flex;justify-content:center;align-items:center;padding:40px 20px;background:var(--bg);}
 .auth-box{width:380px;padding:32px 28px;background:var(--card-bg);border-radius:20px;box-shadow:0 8px 25px rgba(0,0,0,0.08);position:relative;transition:all 0.35s ease;}
 .auth-box.expand{width:430px;padding:38px 32px;}
@@ -62,8 +66,8 @@ body.dark{--bg:#0f1117;--card-bg:#141821;--text:#fff;--subtext:#b9b9b9;--primary
 .message.error{color:red;}
 </style>
 </head>
-<body>
 
+<body>
 <div class="auth-container">
   <div class="auth-box" id="authBox">
     <button class="theme-toggle" id="themeToggle">🌙</button>
@@ -137,12 +141,13 @@ body.dark{--bg:#0f1117;--card-bg:#141821;--text:#fff;--subtext:#b9b9b9;--primary
   const auth = window.auth;
   const db = window.db;
 
-  // ---- FORM SWITCHING ----
+  const authBox = document.getElementById("authBox");
   const loginSection = document.getElementById("loginSection");
   const signupSection = document.getElementById("signupSection");
   const forgotSection = document.getElementById("forgotPasswordSection");
-  const authBox = document.getElementById("authBox");
+  const resetMessage = document.getElementById("resetMessage");
 
+  // --- FORM SWITCHING ---
   document.getElementById("goSignup").addEventListener("click", () => {
     authBox.classList.add("expand");
     loginSection.style.display = "none";
@@ -165,14 +170,14 @@ body.dark{--bg:#0f1117;--card-bg:#141821;--text:#fff;--subtext:#b9b9b9;--primary
     authBox.classList.remove("expand");
   });
 
-  // ---- DARK MODE ----
+  // --- DARK MODE ---
   const themeToggle = document.getElementById("themeToggle");
   themeToggle.addEventListener("click", () => {
     document.body.classList.toggle("dark");
     themeToggle.textContent = document.body.classList.contains("dark") ? "☀" : "🌙";
   });
 
-  // ---- SIGNUP ----
+  // --- SIGNUP ---
   document.getElementById("registerBtn").addEventListener("click", async () => {
     const fullName = document.getElementById("signupName").value.trim();
     const email = document.getElementById("signupEmail").value.trim();
@@ -195,7 +200,7 @@ body.dark{--bg:#0f1117;--card-bg:#141821;--text:#fff;--subtext:#b9b9b9;--primary
     } catch (e) { alert(e.message); }
   });
 
-  // ---- LOGIN ----
+  // --- LOGIN ---
   document.getElementById("loginBtn").addEventListener("click", async () => {
     const email = document.getElementById("loginEmail").value.trim();
     const password = document.getElementById("loginPassword").value;
@@ -213,8 +218,7 @@ body.dark{--bg:#0f1117;--card-bg:#141821;--text:#fff;--subtext:#b9b9b9;--primary
     } catch(e){ alert(e.message); }
   });
 
-  // ---- FORGOT PASSWORD ----
-  const resetMessage = document.getElementById("resetMessage");
+  // --- FORGOT PASSWORD ---
   document.getElementById("sendResetBtn").addEventListener("click", async () => {
     const email = document.getElementById("forgotEmail").value.trim();
     if(!email){ 
@@ -222,6 +226,7 @@ body.dark{--bg:#0f1117;--card-bg:#141821;--text:#fff;--subtext:#b9b9b9;--primary
       resetMessage.textContent = "Enter your email.";
       return; 
     }
+
     try {
       await sendPasswordResetEmail(auth,email, {
         url: window.location.origin + "/login.html"
@@ -234,6 +239,5 @@ body.dark{--bg:#0f1117;--card-bg:#141821;--text:#fff;--subtext:#b9b9b9;--primary
     }
   });
 </script>
-
 </body>
-  </html>
+        </html>
