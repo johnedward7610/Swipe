@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Swipe Auth</title>
 
@@ -12,11 +12,11 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
-  sendEmailVerification
+  signOut
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
-// ----- FIREBASE CONFIG -----
+// ----- Firebase Config -----
 const firebaseConfig = {
   apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
   authDomain: "swipe-f90ed.firebaseapp.com",
@@ -58,7 +58,7 @@ body.dark{
 .auth-btn:hover{background:var(--primary-light);}
 .switch-link{display:block;text-align:center;margin-top:14px;color:var(--primary);font-size:14px;cursor:pointer;}
 .theme-toggle{position:absolute;top:14px;right:14px;background:transparent;border:none;cursor:pointer;font-size:22px;color:var(--text);}
-#forgotPasswordSection{display:none;}
+#forgotPasswordSection, #otpSection{display:none;}
 .message{margin-top:10px;font-size:14px;}
 .message.success{color:green;}
 .message.error{color:red;}
@@ -120,6 +120,18 @@ body.dark{
       <span class="switch-link" id="goLogin">Already have an account? Log in</span>
     </div>
 
+    <!-- OTP VERIFICATION -->
+    <div id="otpSection">
+      <h2 class="auth-title">Enter OTP</h2>
+      <p class="auth-desc">Check your email and enter the 6-digit OTP.</p>
+      <div class="input-group">
+        <label>OTP</label>
+        <input type="text" id="otpInput" placeholder="Enter OTP" required/>
+      </div>
+      <button class="auth-btn" id="verifyOtpBtn">Verify OTP</button>
+      <p id="otpMessage" class="message"></p>
+    </div>
+
     <!-- FORGOT PASSWORD -->
     <div id="forgotPasswordSection">
       <h2 class="auth-title">Forgot Password</h2>
@@ -132,6 +144,7 @@ body.dark{
       <p id="resetMessage" class="message"></p>
       <span class="switch-link" id="backToLogin">Back to Login</span>
     </div>
+
   </div>
 </div>
 
@@ -139,13 +152,16 @@ body.dark{
 const auth = window.auth;
 const db = window.db;
 
+// --- DOM Elements ---
 const authBox = document.getElementById("authBox");
 const loginSection = document.getElementById("loginSection");
 const signupSection = document.getElementById("signupSection");
+const otpSection = document.getElementById("otpSection");
 const forgotSection = document.getElementById("forgotPasswordSection");
+const otpMessage = document.getElementById("otpMessage");
 const resetMessage = document.getElementById("resetMessage");
 
-// FORM SWITCHING
+// --- FORM SWITCHING ---
 document.getElementById("goSignup").addEventListener("click", () => {
   authBox.classList.add("expand");
   loginSection.style.display = "none";
@@ -154,6 +170,7 @@ document.getElementById("goSignup").addEventListener("click", () => {
 document.getElementById("goLogin").addEventListener("click", () => {
   authBox.classList.remove("expand");
   signupSection.style.display = "none";
+  otpSection.style.display = "none";
   forgotSection.style.display = "none";
   loginSection.style.display = "block";
 });
@@ -168,14 +185,21 @@ document.getElementById("backToLogin").addEventListener("click", () => {
   authBox.classList.remove("expand");
 });
 
-// DARK MODE
+// --- DARK MODE ---
 const themeToggle = document.getElementById("themeToggle");
 themeToggle.addEventListener("click", () => {
   document.body.classList.toggle("dark");
   themeToggle.textContent = document.body.classList.contains("dark") ? "☀" : "🌙";
 });
 
-// SIGNUP
+// --- SIGNUP WITH OTP ---
+let currentUserId = null;
+let currentOtp = null;
+
+function generateOtp() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 document.getElementById("registerBtn").addEventListener("click", async () => {
   const fullName = document.getElementById("signupName").value.trim();
   const email = document.getElementById("signupEmail").value.trim();
@@ -189,46 +213,60 @@ document.getElementById("registerBtn").addEventListener("click", async () => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth,email,password);
     const user = userCredential.user;
-    await setDoc(doc(db,"users",user.uid), { fullName, email, gender, createdAt: new Date() });
-    // Optional: sendEmailVerification(user);
-    alert("Registered! You can log in now.");
-    loginSection.style.display = "block";
+    currentUserId = user.uid;
+    currentOtp = generateOtp();
+
+    await setDoc(doc(db,"users",user.uid), {
+      fullName, email, gender, createdAt: new Date(),
+      otp: currentOtp
+    });
+
+    // TODO: send `currentOtp` via email using Cloud Function or SMTP
+    console.log("OTP for testing (send via email in prod):", currentOtp);
+
     signupSection.style.display = "none";
-  } catch (e) { alert(e.message); }
+    otpSection.style.display = "block";
+  } catch(e){ alert(e.message); }
 });
 
-// LOGIN
+// --- VERIFY OTP ---
+document.getElementById("verifyOtpBtn").addEventListener("click", async () => {
+  const otpInput = document.getElementById("otpInput").value.trim();
+  if (otpInput === currentOtp) {
+    otpMessage.className = "message success";
+    otpMessage.textContent = "OTP verified! You can log in now.";
+    otpSection.style.display = "none";
+    loginSection.style.display = "block";
+  } else {
+    otpMessage.className = "message error";
+    otpMessage.textContent = "Incorrect OTP. Try again.";
+  }
+});
+
+// --- LOGIN ---
 document.getElementById("loginBtn").addEventListener("click", async () => {
   const email = document.getElementById("loginEmail").value.trim();
   const password = document.getElementById("loginPassword").value;
-  if (!email || !password) { alert("Enter email and password."); return; }
+  if(!email || !password) { alert("Enter email and password."); return; }
 
   try {
-    const userCredential = await signInWithEmailAndPassword(auth,email,password);
-    // Temporarily skip emailVerified check for testing
+    await signInWithEmailAndPassword(auth,email,password);
     alert("Logged in successfully!");
     window.location.href="profile.html";
   } catch(e){ alert(e.message); }
 });
 
-// FORGOT PASSWORD
+// --- PASSWORD RESET ---
 document.getElementById("sendResetBtn").addEventListener("click", async () => {
   const email = document.getElementById("forgotEmail").value.trim();
-  if(!email){ 
-    resetMessage.className = "message error";
-    resetMessage.textContent = "Enter your email.";
-    return; 
-  }
+  if(!email){ resetMessage.className="message error"; resetMessage.textContent="Enter your email."; return; }
 
   try {
     await sendPasswordResetEmail(auth,email);
-    resetMessage.className = "message success";
-    resetMessage.textContent = "Password reset link sent! Check your email.";
-  } catch(e){ 
-    resetMessage.className = "message error";
-    resetMessage.textContent = e.message;
-  }
+    resetMessage.className="message success";
+    resetMessage.textContent="Password reset link sent! Check your email.";
+  } catch(e){ resetMessage.className="message error"; resetMessage.textContent=e.message; }
 });
 </script>
 </body>
-  </html>
+          </html>
