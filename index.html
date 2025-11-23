@@ -5,18 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Swipe Auth</title>
 
-<!-- FIREBASE MODULE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
   getAuth,
   createUserWithEmailAndPassword,
-  sendEmailVerification,
   signInWithEmailAndPassword,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  sendEmailVerification
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
+// ----- FIREBASE CONFIG -----
 const firebaseConfig = {
   apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
   authDomain: "swipe-f90ed.firebaseapp.com",
@@ -30,13 +30,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-
 window.auth = auth;
 window.db = db;
 </script>
 
 <style>
-/* ===== GLOBAL STYLES ===== */
 *{box-sizing:border-box;}
 body{margin:0;font-family:Inter,sans-serif;transition:background 0.3s,color 0.3s;}
 :root{
@@ -138,106 +136,99 @@ body.dark{
 </div>
 
 <script type="module">
-  const auth = window.auth;
-  const db = window.db;
+const auth = window.auth;
+const db = window.db;
 
-  const authBox = document.getElementById("authBox");
-  const loginSection = document.getElementById("loginSection");
-  const signupSection = document.getElementById("signupSection");
-  const forgotSection = document.getElementById("forgotPasswordSection");
-  const resetMessage = document.getElementById("resetMessage");
+const authBox = document.getElementById("authBox");
+const loginSection = document.getElementById("loginSection");
+const signupSection = document.getElementById("signupSection");
+const forgotSection = document.getElementById("forgotPasswordSection");
+const resetMessage = document.getElementById("resetMessage");
 
-  // --- FORM SWITCHING ---
-  document.getElementById("goSignup").addEventListener("click", () => {
-    authBox.classList.add("expand");
-    loginSection.style.display = "none";
-    signupSection.style.display = "block";
-  });
-  document.getElementById("goLogin").addEventListener("click", () => {
-    authBox.classList.remove("expand");
+// FORM SWITCHING
+document.getElementById("goSignup").addEventListener("click", () => {
+  authBox.classList.add("expand");
+  loginSection.style.display = "none";
+  signupSection.style.display = "block";
+});
+document.getElementById("goLogin").addEventListener("click", () => {
+  authBox.classList.remove("expand");
+  signupSection.style.display = "none";
+  forgotSection.style.display = "none";
+  loginSection.style.display = "block";
+});
+document.getElementById("goForgotPassword").addEventListener("click", () => {
+  loginSection.style.display = "none";
+  forgotSection.style.display = "block";
+  authBox.classList.add("expand");
+});
+document.getElementById("backToLogin").addEventListener("click", () => {
+  forgotSection.style.display = "none";
+  loginSection.style.display = "block";
+  authBox.classList.remove("expand");
+});
+
+// DARK MODE
+const themeToggle = document.getElementById("themeToggle");
+themeToggle.addEventListener("click", () => {
+  document.body.classList.toggle("dark");
+  themeToggle.textContent = document.body.classList.contains("dark") ? "☀" : "🌙";
+});
+
+// SIGNUP
+document.getElementById("registerBtn").addEventListener("click", async () => {
+  const fullName = document.getElementById("signupName").value.trim();
+  const email = document.getElementById("signupEmail").value.trim();
+  const gender = document.getElementById("signupGender").value;
+  const password = document.getElementById("signupPassword").value;
+  const confirmPassword = document.getElementById("signupConfirmPassword").value;
+
+  if (!fullName || !email || !gender || !password || !confirmPassword) { alert("Fill all fields"); return; }
+  if (password !== confirmPassword) { alert("Passwords do not match"); return; }
+
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth,email,password);
+    const user = userCredential.user;
+    await setDoc(doc(db,"users",user.uid), { fullName, email, gender, createdAt: new Date() });
+    // Optional: sendEmailVerification(user);
+    alert("Registered! You can log in now.");
+    loginSection.style.display = "block";
     signupSection.style.display = "none";
-    forgotSection.style.display = "none";
-    loginSection.style.display = "block";
-  });
-  document.getElementById("goForgotPassword").addEventListener("click", () => {
-    loginSection.style.display = "none";
-    forgotSection.style.display = "block";
-    authBox.classList.add("expand");
-  });
-  document.getElementById("backToLogin").addEventListener("click", () => {
-    forgotSection.style.display = "none";
-    loginSection.style.display = "block";
-    authBox.classList.remove("expand");
-  });
+  } catch (e) { alert(e.message); }
+});
 
-  // --- DARK MODE ---
-  const themeToggle = document.getElementById("themeToggle");
-  themeToggle.addEventListener("click", () => {
-    document.body.classList.toggle("dark");
-    themeToggle.textContent = document.body.classList.contains("dark") ? "☀" : "🌙";
-  });
+// LOGIN
+document.getElementById("loginBtn").addEventListener("click", async () => {
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  if (!email || !password) { alert("Enter email and password."); return; }
 
-  // --- SIGNUP ---
-  document.getElementById("registerBtn").addEventListener("click", async () => {
-    const fullName = document.getElementById("signupName").value.trim();
-    const email = document.getElementById("signupEmail").value.trim();
-    const gender = document.getElementById("signupGender").value;
-    const password = document.getElementById("signupPassword").value;
-    const confirmPassword = document.getElementById("signupConfirmPassword").value;
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth,email,password);
+    // Temporarily skip emailVerified check for testing
+    alert("Logged in successfully!");
+    window.location.href="profile.html";
+  } catch(e){ alert(e.message); }
+});
 
-    if (!fullName || !email || !gender || !password || !confirmPassword) { alert("Fill all fields"); return; }
-    if (password !== confirmPassword) { alert("Passwords do not match"); return; }
+// FORGOT PASSWORD
+document.getElementById("sendResetBtn").addEventListener("click", async () => {
+  const email = document.getElementById("forgotEmail").value.trim();
+  if(!email){ 
+    resetMessage.className = "message error";
+    resetMessage.textContent = "Enter your email.";
+    return; 
+  }
 
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth,email,password);
-      const user = userCredential.user;
-      await setDoc(doc(db,"users",user.uid), { fullName, email, gender, createdAt: new Date() });
-      await sendEmailVerification(user);
-      alert("Registered! Check your email for verification link.");
-      auth.signOut();
-      loginSection.style.display = "block";
-      signupSection.style.display = "none";
-    } catch (e) { alert(e.message); }
-  });
-
-  // --- LOGIN ---
-  document.getElementById("loginBtn").addEventListener("click", async () => {
-    const email = document.getElementById("loginEmail").value.trim();
-    const password = document.getElementById("loginPassword").value;
-    if (!email || !password) { alert("Enter email and password."); return; }
-
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth,email,password);
-      if(!userCredential.user.emailVerified){ 
-        alert("Please verify your email first."); 
-        auth.signOut(); 
-        return;
-      }
-      alert("Logged in successfully!");
-      window.location.href="profile.html";
-    } catch(e){ alert(e.message); }
-  });
-
-  // --- FORGOT PASSWORD ---
-  document.getElementById("sendResetBtn").addEventListener("click", async () => {
-    const email = document.getElementById("forgotEmail").value.trim();
-    if(!email){ 
-      resetMessage.className = "message error";
-      resetMessage.textContent = "Enter your email.";
-      return; 
-    }
-
-    try {
-      await sendPasswordResetEmail(auth,email, {
-        url: window.location.origin + "/login.html"
-      });
-      resetMessage.className = "message success";
-      resetMessage.textContent = "Password reset link sent! Check your email.";
-    } catch(e){ 
-      resetMessage.className = "message error";
-      resetMessage.textContent = e.message;
-    }
-  });
+  try {
+    await sendPasswordResetEmail(auth,email);
+    resetMessage.className = "message success";
+    resetMessage.textContent = "Password reset link sent! Check your email.";
+  } catch(e){ 
+    resetMessage.className = "message error";
+    resetMessage.textContent = e.message;
+  }
+});
 </script>
 </body>
-        </html>
+  </html>
