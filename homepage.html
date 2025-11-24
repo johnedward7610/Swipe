@@ -46,6 +46,23 @@ textarea.comment-input{width:100%;padding:8px;border-radius:8px;border:1px solid
   border-radius:50%;
   display:none;
 }
+
+/* Viewer styles */
+#videoViewer {
+  position:fixed;
+  inset:0;
+  background:black;
+  display:none;
+  z-index:9999999;
+  overflow:hidden;
+  touch-action:none;
+}
+#viewerSlide { position:absolute; inset:0; display:flex; justify-content:center; align-items:center; }
+#viewerVideo { width:100%; height:100%; object-fit:contain; background:black; }
+
+/* make the post images clickable pointer feel */
+.post-images img, .post-images video { transition: transform .12s ease; }
+.post-images img:active, .post-images video:active { transform: scale(.98); }
 </style>
 </head>
 <body>
@@ -102,22 +119,17 @@ textarea.comment-input{width:100%;padding:8px;border-radius:8px;border:1px solid
 </div>
 
 <div class="floating-post" id="floatingPost" title="Create post">+</div>
-<!-- ===== Fullscreen TikTok-style Viewer ===== -->
-<div id="videoViewer" style="
-  position:fixed; inset:0; background:black; 
-  display:none; justify-content:center; align-items:center;
-  flex-direction:column; z-index:99999; overflow:hidden;">
-  
-  <button id="closeViewer" 
-    style="position:absolute;top:20px;right:20px;font-size:30px;
-    background:none;color:white;border:none;cursor:pointer;">
-    ✕
-  </button>
 
-  <video id="viewerVideo" 
-    style="width:100%;height:100%;object-fit:contain;" 
-    controls autoplay></video>
+<!-- ===== Fixed TikTok-style Video Viewer (single overlay) ===== -->
+<div id="videoViewer">
+    <button id="closeViewer" style="position:absolute;top:20px;right:20px;font-size:32px;background:none;color:white;border:none;z-index:20;">✕</button>
+    <div id="viewerSlide">
+        <video id="viewerVideo" autoplay muted playsinline></video>
+    </div>
+    <!-- transparent swipe layer above the video so we can catch touches -->
+    <div id="swipeLayer" style="position:absolute; inset:0; z-index:15;"></div>
 </div>
+
 <script type="module">
 /* ===== Firebase & imports ===== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
@@ -218,6 +230,85 @@ async function getUserProfile(uid){
   return userDoc.exists() ? userDoc.data() : null;
 }
 
+/* ===== VIDEO VIEWER STATE & HANDLERS ===== */
+let allVideos = [];        // all video URLs from loaded posts
+let currentVideoIndex = 0; // index of the current video
+
+const viewer = document.getElementById("videoViewer");
+const swipeLayer = document.getElementById("swipeLayer");
+const viewerVideo = document.getElementById("viewerVideo");
+const closeViewerBtn = document.getElementById("closeViewer");
+
+function openViewer(index){
+  if(typeof index !== 'number' || index < 0 || index >= allVideos.length) return;
+  currentVideoIndex = index;
+  viewerVideo.src = allVideos[index];
+  viewer.style.display = "block";
+  // try play (some browsers require user gesture; clicking the video element counts)
+  viewerVideo.play().catch(()=>{ /* ignore autoplay block */ });
+}
+
+function closeViewer(){
+  viewer.style.display = "none";
+  try { viewerVideo.pause(); } catch(e){}
+  viewerVideo.src = "";
+}
+
+/* Close events */
+closeViewerBtn.onclick = closeViewer;
+document.addEventListener('keydown', (e) => {
+  if(viewer.style.display !== "block") return;
+  if(e.key === "Escape") closeViewer();
+  if(e.key === "ArrowDown" || e.key === "ArrowRight") {
+    if(currentVideoIndex < allVideos.length - 1) {
+      currentVideoIndex++;
+      viewerVideo.src = allVideos[currentVideoIndex];
+      viewerVideo.play().catch(()=>{});
+    }
+  }
+  if(e.key === "ArrowUp" || e.key === "ArrowLeft") {
+    if(currentVideoIndex > 0) {
+      currentVideoIndex--;
+      viewerVideo.src = allVideos[currentVideoIndex];
+      viewerVideo.play().catch(()=>{});
+    }
+  }
+});
+
+/* Touch swipe handling on the swipeLayer */
+let startY = 0;
+let lastY = 0;
+
+swipeLayer.addEventListener("touchstart", (e) => {
+  startY = e.touches[0].clientY;
+  lastY = startY;
+}, {passive:true});
+
+swipeLayer.addEventListener("touchmove", (e) => {
+  lastY = e.touches[0].clientY;
+}, {passive:true});
+
+swipeLayer.addEventListener("touchend", (e) => {
+  const diff = startY - lastY;
+  if(Math.abs(diff) < 50) return; // threshold
+
+  if(diff > 50) {
+    // swipe up -> next
+    if(currentVideoIndex < allVideos.length - 1) {
+      currentVideoIndex++;
+      viewerVideo.src = allVideos[currentVideoIndex];
+      viewerVideo.play().catch(()=>{});
+    }
+  } else {
+    // swipe down -> previous
+    if(currentVideoIndex > 0) {
+      currentVideoIndex--;
+      viewerVideo.src = allVideos[currentVideoIndex];
+      viewerVideo.play().catch(()=>{});
+    }
+  }
+}, {passive:true});
+
 /* ===== Render post card (with tags and shared post support) ===== */
 async function renderPostCard(postId, data){
   const card = document.createElement('div');
@@ -269,71 +360,30 @@ async function renderPostCard(postId, data){
 
     <div class="actions">
       <button class="btn like-btn" id="like-${postId}">
-      <?xml version="1.0" encoding="iso-8859-1"?>
-<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg fill="#000000" version="1.1" id="Capa_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
-	 width="25px" height="25px" viewBox="0 0 544.582 544.582"
-	 xml:space="preserve">
-<g>
-	<path d="M448.069,57.839c-72.675-23.562-150.781,15.759-175.721,87.898C247.41,73.522,169.303,34.277,96.628,57.839
-		C23.111,81.784-16.975,160.885,6.894,234.708c22.95,70.38,235.773,258.876,263.006,258.876
-		c27.234,0,244.801-188.267,267.751-258.876C561.595,160.732,521.509,81.631,448.069,57.839z"/>
-</g>
-</svg>
-      
+        <!-- heart icon as before -->
+        <svg fill="#000000" width="25px" height="25px" viewBox="0 0 544.582 544.582" xmlns="http://www.w3.org/2000/svg"><g><path d="M448.069,57.839c-72.675-23.562-150.781,15.759-175.721,87.898C247.41,73.522,169.303,34.277,96.628,57.839C23.111,81.784-16.975,160.885,6.894,234.708c22.95,70.38,235.773,258.876,263.006,258.876c27.234,0,244.801-188.267,267.751-258.876C561.595,160.732,521.509,81.631,448.069,57.839z"/></g></svg>
       </button>
       <span class="likes-count" id="likes-${postId}">0</span>
 
       <button class="btn comment-btn" id="toggle-${postId}">
-      <?xml version="1.0" encoding="utf-8"?><!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
-<svg width="30px" height="30px" viewBox="0 -0.5 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path fill-rule="evenodd" clip-rule="evenodd" d="M5.5 12C5.49988 14.613 6.95512 17.0085 9.2741 18.2127C11.5931 19.4169 14.3897 19.2292 16.527 17.726L19.5 18V12C19.5 8.13401 16.366 5 12.5 5C8.63401 5 5.5 8.13401 5.5 12Z" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-  <path d="M9.5 13.25C9.08579 13.25 8.75 13.5858 8.75 14C8.75 14.4142 9.08579 14.75 9.5 14.75V13.25ZM13.5 14.75C13.9142 14.75 14.25 14.4142 14.25 14C14.25 13.5858 13.9142 13.25 13.5 13.25V14.75ZM9.5 10.25C9.08579 10.25 8.75 10.5858 8.75 11C8.75 11.4142 9.08579 11.75 9.5 11.75V10.25ZM15.5 11.75C15.9142 11.75 16.25 11.4142 16.25 11C16.25 10.5858 15.9142 10.25 15.5 10.25V11.75ZM9.5 14.75H13.5V13.25H9.5V14.75ZM9.5 11.75H15.5V10.25H9.5V11.75Z" fill="#000000" />
-</svg>
-      
+        <!-- comment icon -->
+        <svg width="30px" height="30px" viewBox="0 -0.5 25 25" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M5.5 12C5.49988 14.613 6.95512 17.0085 9.2741 18.2127C11.5931 19.4169 14.3897 19.2292 16.527 17.726L19.5 18V12C19.5 8.13401 16.366 5 12.5 5C8.63401 5 5.5 8.13401 5.5 12Z" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /><path d="M9.5 13.25C9.08579 13.25 8.75 13.5858 8.75 14C8.75 14.4142 9.08579 14.75 9.5 14.75V13.25ZM13.5 14.75C13.9142 14.75 14.25 14.4142 14.25 14C14.25 13.5858 13.9142 13.25 13.5 13.25V14.75ZM9.5 10.25C9.08579 10.25 8.75 10.5858 8.75 11C8.75 11.4142 9.08579 11.75 9.5 11.75V10.25ZM15.5 11.75C15.9142 11.75 16.25 11.4142 16.25 11C16.25 10.5858 15.9142 10.25 15.5 10.25V11.75ZM9.5 14.75H13.5V13.25H9.5V14.75ZM9.5 11.75H15.5V10.25H9.5V11.75Z" fill="#000000" /></svg>
       </button>
 
       <button class="btn share-btn" id="share-${postId}">
-      <?xml version="1.0" encoding="utf-8"?><!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
-<svg widbutt25px" height="25px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M9.61109 12.4L10.8183 18.5355C11.0462 19.6939 12.6026 19.9244 13.1565 18.8818L19.0211 7.84263C19.248 7.41555 19.2006 6.94354 18.9737 6.58417M9.61109 12.4L5.22642 8.15534C4.41653 7.37131 4.97155 6 6.09877 6H17.9135C18.3758 6 18.7568 6.24061 18.9737 6.58417M9.61109 12.4L18.9737 6.58417M19.0555 6.53333L18.9737 6.58417" stroke="#000000" stroke-width="2" />
-</svg>
+        <!-- share icon -->
+        <svg width="25px" height="25px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9.61109 12.4L10.8183 18.5355C11.0462 19.6939 12.6026 19.9244 13.1565 18.8818L19.0211 7.84263C19.248 7.41555 19.2006 6.94354 18.9737 6.58417M9.61109 12.4L5.22642 8.15534C4.41653 7.37131 4.97155 6 6.09877 6H17.9135C18.3758 6 18.7568 6.24061 18.9737 6.58417M9.61109 12.4L18.9737 6.58417M19.0555 6.53333L18.9737 6.58417" stroke="#000000" stroke-width="2" /></svg>
       </button>
 
       <span class="views-count" id="views-${postId}">0 views</span>
 
-      ${currentUser?.uid === data.uid ? `<button class="btn delete-btn" id="del-${postId}">
-      <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
-<svg width="25px" height="25px" viewBox="0 -0.5 21 21" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-
-  <title>delete [#1487]</title>
-  <desc>Created with Sketch.</desc>
-  <defs>
-    
-  </defs>
-  <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
-    <g id="Dribbble-Light-Preview" transform="translate(-179.000000, -360.000000)" fill="#000000">
-      <g id="icons" transform="translate(56.000000, 160.000000)">
-        <path d="M130.35,216 L132.45,216 L132.45,208 L130.35,208 L130.35,216 Z M134.55,216 L136.65,216 L136.65,208 L134.55,208 L134.55,216 Z M128.25,218 L138.75,218 L138.75,206 L128.25,206 L128.25,218 Z M130.35,204 L136.65,204 L136.65,202 L130.35,202 L130.35,204 Z M138.75,204 L138.75,200 L128.25,200 L128.25,204 L123,204 L123,206 L126.15,206 L126.15,220 L140.85,220 L140.85,206 L144,206 L144,204 L138.75,204 Z" id="delete-[#1487]">
-          
-        </path>
-      </g>
-    </g>
-  </g>
-</svg>
-      </button>` : ""}
+      ${currentUser?.uid === data.uid ? `<button class="btn delete-btn" id="del-${postId}"><svg width="25px" height="25px" viewBox="0 -0.5 21 21" xmlns="http://www.w3.org/2000/svg"><path d="M130.35,216 L132.45,216 L132.45,208 L130.35,208 L130.35,216 Z M134.55,216 L136.65,216 L136.65,208 L134.55,208 L134.55,216 Z M128.25,218 L138.75,218 L138.75,206 L128.25,206 L128.25,218 Z M130.35,204 L136.65,204 L136.65,202 L130.35,202 L130.35,204 Z M138.75,204 L138.75,200 L128.25,200 L128.25,204 L123,204 L123,206 L126.15,206 L126.15,220 L140.85,220 L140.85,206 L144,206 L144,204 L138.75,204 Z"/></svg></button>` : ""}
     </div>
 
     <div class="comments-area" id="carea-${postId}" style="display:none">
       <textarea id="cinput-${postId}" class="comment-input" placeholder="Write a comment…"></textarea>
       <button class="btn comment-btn" id="cpost-${postId}">
-      <?xml version="1.0" encoding="utf-8"?><!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
-<svg width="25px" height="25px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M20.7639 12H10.0556M3 8.00003H5.5M4 12H5.5M4.5 16H5.5M9.96153 12.4896L9.07002 15.4486C8.73252 16.5688 8.56376 17.1289 8.70734 17.4633C8.83199 17.7537 9.08656 17.9681 9.39391 18.0415C9.74792 18.1261 10.2711 17.8645 11.3175 17.3413L19.1378 13.4311C20.059 12.9705 20.5197 12.7402 20.6675 12.4285C20.7961 12.1573 20.7961 11.8427 20.6675 11.5715C20.5197 11.2598 20.059 11.0295 19.1378 10.5689L11.3068 6.65342C10.2633 6.13168 9.74156 5.87081 9.38789 5.95502C9.0808 6.02815 8.82627 6.24198 8.70128 6.53184C8.55731 6.86569 8.72427 7.42461 9.05819 8.54246L9.96261 11.5701C10.0137 11.7411 10.0392 11.8266 10.0493 11.9137C10.0583 11.991 10.0582 12.069 10.049 12.1463C10.0387 12.2334 10.013 12.3188 9.96153 12.4896Z" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
-      
+        <svg width="25px" height="25px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20.7639 12H10.0556M3 8.00003H5.5M4 12H5.5M4.5 16H5.5M9.96153 12.4896L9.07002 15.4486C8.73252 16.5688 8.56376 17.1289 8.70734 17.4633C8.83199 17.7537 9.08656 17.9681 9.39391 18.0415C9.74792 18.1261 10.2711 17.8645 11.3175 17.3413L19.1378 13.4311C20.059 12.9705 20.5197 12.7402 20.6675 12.4285C20.7961 12.1573 20.7961 11.8427 20.6675 11.5715C20.5197 11.2598 20.059 11.0295 19.1378 10.5689L11.3068 6.65342C10.2633 6.13168 9.74156 5.87081 9.38789 5.95502C9.0808 6.02815 8.82627 6.24198 8.70128 6.53184C8.55731 6.86569 8.72427 7.42461 9.05819 8.54246L9.96261 11.5701C10.0137 11.7411 10.0392 11.8266 10.0493 11.9137C10.0583 11.991 10.0582 12.069 10.049 12.1463C10.0387 12.2334 10.013 12.3188 9.96153 12.4896Z" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <div id="clist-${postId}" class="clist"></div>
     </div>
@@ -359,22 +409,28 @@ async function renderPostCard(postId, data){
   const imgBox = card.querySelector(`#img-${postId}`);
   if(data.mediaUrls?.length){
     data.mediaUrls.forEach(url=>{
-		if(url.match(/\.(mp4|webm|ogg)$/)){
-  const video = document.createElement('video');
-  video.src = url;
-  video.controls = true;
-  video.style.maxWidth = data.mediaUrls.length===1?'100%':'48%';
+      if(url.match(/\.(mp4|webm|ogg)$/)){
+        // create a small inline video preview element (no controls so clicks open viewer)
+        const video = document.createElement('video');
+        video.src = url;
+        video.controls = false;    // IMPORTANT: prevent the video from stealing touch events
+        video.muted = true;
+        video.playsInline = true;
+        video.style.maxWidth = data.mediaUrls.length===1 ? '100%' : '48%';
+        video.style.cursor = 'pointer';
 
-  // ADD TO GLOBAL VIDEO LIST
-  const vidIndex = allVideos.length;
-  allVideos.push(url);
+        // Add to global video list and capture index
+        const vidIndex = allVideos.push(url) - 1;
 
-  // CLICK → OPEN FULLSCREEN VIEWER
-  video.onclick = ()=> openViewer(vidIndex);
+        // Clicking the inline preview opens the custom viewer overlay (works on mobile)
+        video.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          openViewer(vidIndex);
+        });
 
-  imgBox.appendChild(video);
-	}
-      else {
+        imgBox.appendChild(video);
+
+      } else {
         const img = document.createElement('img');
         img.src = url;
         img.style.maxWidth = data.mediaUrls.length===1?'100%':'48%';
@@ -539,66 +595,6 @@ window.addEventListener('scroll',()=>{
 
 /* ===== Initial load ===== */
 loadPosts(true);
-
-	/* ===== Video Viewer State ===== */
-let allVideos = [];        // all video URLs from loaded posts
-let currentVideoIndex = 0; // index of the current video
-
-function openViewer(index){
-  currentVideoIndex = index;
-  document.getElementById("viewerVideo").src = allVideos[index];
-  document.getElementById("videoViewer").style.display = "flex";
-}
-
-function closeViewer(){
-  document.getElementById("videoViewer").style.display = "none";
-  document.getElementById("viewerVideo").pause();
-}
-
-/* Swipe Navigation */
-document.addEventListener("keydown", e=>{
-  if(document.getElementById("videoViewer").style.display === "flex"){
-    if(e.key === "ArrowDown" || e.key === "ArrowRight"){
-      if(currentVideoIndex < allVideos.length - 1){
-        currentVideoIndex++;
-        openViewer(currentVideoIndex);
-      }
-    }
-    if(e.key === "ArrowUp" || e.key === "ArrowLeft"){
-      if(currentVideoIndex > 0){
-        currentVideoIndex--;
-        openViewer(currentVideoIndex);
-      }
-    }
-    if(e.key === "Escape") closeViewer();
-  }
-});
-
-/* Close button */
-document.getElementById("closeViewer").onclick = closeViewer;
-
-/* Touch swipe for mobile */
-let startY = 0;
-document.getElementById("videoViewer").addEventListener("touchstart", e=>{
-  startY = e.touches[0].clientY;
-});
-
-document.getElementById("videoViewer").addEventListener("touchend", e=>{
-  let endY = e.changedTouches[0].clientY;
-  let diff = startY - endY;
-
-  if(diff > 50){ // swipe UP → next
-    if(currentVideoIndex < allVideos.length - 1){
-      currentVideoIndex++;
-      openViewer(currentVideoIndex);
-    }
-  } else if(diff < -50){ // swipe DOWN → previous
-    if(currentVideoIndex > 0){
-      currentVideoIndex--;
-      openViewer(currentVideoIndex);
-    }
-  }
-});
 
 </script>
 </body>
