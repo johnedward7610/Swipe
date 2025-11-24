@@ -1,18 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1702629458692949"
-     crossorigin="anonymous"></script>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Homepage</title>
 <style>
-:root{--primary:#6e8ef5;--accent:#ff6e6e}
-*{box-sizing:border-box}
+.floating-post{--primary:#606CF9;--accent:#ff6e6e}
 body{font-family:sans-serif;background:#f4f6ff;margin:0;padding:20px;}
 .hotbar{display:flex;gap:10px;margin-bottom:14px}
 .hotbar button{padding:10px 16px;border:none;border-radius:10px;background:var(--primary);color:#fff;cursor:pointer;position:relative}
-#feed{max-width:900px;margin:0 auto}
+#feed{max-width:800px;margin:0 auto}
 .post-card{background:#fff;padding:16px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:16px}
 .post-header{display:flex;align-items:center;gap:12px}
 .avatar{width:48px;height:48px;border-radius:999px;background:linear-gradient(135deg,#cfe1ff,#e7dfff);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;overflow:hidden}
@@ -49,73 +46,53 @@ textarea.comment-input{width:100%;padding:8px;border-radius:8px;border:1px solid
   border-radius:50%;
   display:none;
 }
-
-/* ---- Video fullscreen viewer (tiktok style) ---- */
-#videoViewer {
-  position: fixed;
-  inset: 0;
-  background: #000;
-  display: none;
-  z-index: 2000;
-  color: #fff;
-}
-#videoViewer.active { display: block; }
-#videoViewer .closeBtn {
-  position: absolute; top:18px; right:18px; z-index:10;
-  background: rgba(255,255,255,0.08); border: none; color:#fff; padding:10px 12px; border-radius:8px; cursor:pointer;
-}
-#videoViewer .track {
-  height:100vh;
-  overflow-y: auto;
-  scroll-snap-type: y mandatory;
-}
-.video-slide {
-  height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  scroll-snap-align: start;
-  position:relative;
-}
-.video-slide video {
-  max-height:100%;
-  width:auto;
-  max-width:100%;
-  object-fit:cover;
-}
-.viewer-info {
-  position:absolute;
-  left:18px;
-  bottom:32px;
-  z-index:3;
-  max-width:60%;
-}
-.viewer-info .name {font-weight:700;font-size:18px;margin-bottom:6px}
-.viewer-controls {
-  position:absolute;
-  right:18px;
-  bottom:120px;
-  z-index:3;
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-  align-items:center;
-}
-
-/* small hint */
-.viewer-hint { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#fff; opacity:0.06; font-size:80px; pointer-events:none; }
 </style>
 </head>
 <body>
 
 <div class="hotbar">
-  <button onclick="location.href='profile.html'">My Profile</button>
-  <button onclick="location.href='user.html'">Users</button>
-  <button onclick="location.href='post.html'">Create Post</button>
+  <button onclick="location.href='profile.html'">   <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg width="25px" height="25px" viewBox="0 0 20 20" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+
+  <title>profile_round [#1342]</title>
+  <desc>Created with Sketch.</desc>
+  <defs>
+    
+  </defs>
+  <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+    <g id="Dribbble-Light-Preview" transform="translate(-140.000000, -2159.000000)" fill="#000000">
+      <g id="icons" transform="translate(56.000000, 160.000000)">
+        <path d="M100.562548,2016.99998 L87.4381713,2016.99998 C86.7317804,2016.99998 86.2101535,2016.30298 86.4765813,2015.66198 C87.7127655,2012.69798 90.6169306,2010.99998 93.9998492,2010.99998 C97.3837885,2010.99998 100.287954,2012.69798 101.524138,2015.66198 C101.790566,2016.30298 101.268939,2016.99998 100.562548,2016.99998 M89.9166645,2004.99998 C89.9166645,2002.79398 91.7489936,2000.99998 93.9998492,2000.99998 C96.2517256,2000.99998 98.0830339,2002.79398 98.0830339,2004.99998 C98.0830339,2007.20598 96.2517256,2008.99998 93.9998492,2008.99998 C91.7489936,2008.99998 89.9166645,2007.20598 89.9166645,2004.99998 M103.955674,2016.63598 C103.213556,2013.27698 100.892265,2010.79798 97.837022,2009.67298 C99.4560048,2008.39598 100.400241,2006.33098 100.053171,2004.06998 C99.6509769,2001.44698 97.4235996,1999.34798 94.7348224,1999.04198 C91.0232075,1998.61898 87.8750721,2001.44898 87.8750721,2004.99998 C87.8750721,2006.88998 88.7692896,2008.57398 90.1636971,2009.67298 C87.1074334,2010.79798 84.7871636,2013.27698 84.044024,2016.63598 C83.7745338,2017.85698 84.7789973,2018.99998 86.0539717,2018.99998 L101.945727,2018.99998 C103.221722,2018.99998 104.226185,2017.85698 103.955674,2016.63598" id="profile_round-[#1342]">
+          
+        </path>
+      </g>
+    </g>
+  </g>
+</svg></button>
+  <button onclick="location.href='user.html'">
+    <?xml version="1.0" encoding="utf-8"?><!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg width="30px" height="30px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M13 20V18C13 15.2386 10.7614 13 8 13C5.23858 13 3 15.2386 3 18V20H13ZM13 20H21V19C21 16.0545 18.7614 14 16 14C14.5867 14 13.3103 14.6255 12.4009 15.6311M11 7C11 8.65685 9.65685 10 8 10C6.34315 10 5 8.65685 5 7C5 5.34315 6.34315 4 8 4C9.65685 4 11 5.34315 11 7ZM18 9C18 10.1046 17.1046 11 16 11C14.8954 11 14 10.1046 14 9C14 7.89543 14.8954 7 16 7C17.1046 7 18 7.89543 18 9Z" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
+  </button>
   <button id="notificationBtn" onclick="location.href='notification.html'">
-    notification
+    <?xml version="1.0" encoding="utf-8"?><!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg width="40px" height="40px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M6.31317 12.463C6.20006 9.29213 8.60976 6.6252 11.701 6.5C14.7923 6.6252 17.202 9.29213 17.0889 12.463C17.0889 13.78 18.4841 15.063 18.525 16.383C18.525 16.4017 18.525 16.4203 18.525 16.439C18.5552 17.2847 17.9124 17.9959 17.0879 18.029H13.9757C13.9786 18.677 13.7404 19.3018 13.3098 19.776C12.8957 20.2372 12.3123 20.4996 11.701 20.4996C11.0897 20.4996 10.5064 20.2372 10.0923 19.776C9.66161 19.3018 9.42346 18.677 9.42635 18.029H6.31317C5.48869 17.9959 4.84583 17.2847 4.87602 16.439C4.87602 16.4203 4.87602 16.4017 4.87602 16.383C4.91795 15.067 6.31317 13.781 6.31317 12.463Z" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M9.42633 17.279C9.01212 17.279 8.67633 17.6148 8.67633 18.029C8.67633 18.4432 9.01212 18.779 9.42633 18.779V17.279ZM13.9757 18.779C14.3899 18.779 14.7257 18.4432 14.7257 18.029C14.7257 17.6148 14.3899 17.279 13.9757 17.279V18.779ZM12.676 5.25C13.0902 5.25 13.426 4.91421 13.426 4.5C13.426 4.08579 13.0902 3.75 12.676 3.75V5.25ZM10.726 3.75C10.3118 3.75 9.97601 4.08579 9.97601 4.5C9.97601 4.91421 10.3118 5.25 10.726 5.25V3.75ZM9.42633 18.779H13.9757V17.279H9.42633V18.779ZM12.676 3.75H10.726V5.25H12.676V3.75Z" fill="#000000" />
+</svg>
     <span id="notifDot"></span>
   </button>
+  
+  <button onclick="location.href='msglist.html'">
+    <?xml version="1.0" encoding="utf-8"?><!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg width="30px" height="30px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 13.5997 2.37562 15.1116 3.04346 16.4525C3.22094 16.8088 3.28001 17.2161 3.17712 17.6006L2.58151 19.8267C2.32295 20.793 3.20701 21.677 4.17335 21.4185L6.39939 20.8229C6.78393 20.72 7.19121 20.7791 7.54753 20.9565C8.88837 21.6244 10.4003 22 12 22Z" stroke="#1C274C" stroke-width="1.5"/>
+<path opacity="0.5" d="M8 12H8.009M11.991 12H12M15.991 12H16" stroke="#1C274C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+  </button>
+
 </div>
 
 <div id="feed">
@@ -126,15 +103,8 @@ textarea.comment-input{width:100%;padding:8px;border-radius:8px;border:1px solid
 
 <div class="floating-post" id="floatingPost" title="Create post">+</div>
 
-<!-- TikTok-style viewer overlay -->
-<div id="videoViewer" aria-hidden="true">
-  <button class="closeBtn" id="viewerClose">Close ✕</button>
-  <div class="track" id="viewerTrack"></div>
-  <div class="viewer-hint">video</div>
-</div>
-
 <script type="module">
-/* ===== Firebase imports ===== */
+/* ===== Firebase & imports ===== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
   getAuth, onAuthStateChanged
@@ -146,7 +116,6 @@ import {
   updateDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
-/* ===== Config (unchanged) ===== */
 const firebaseConfig = {
   apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
   authDomain: "swipe-f90ed.firebaseapp.com",
@@ -175,18 +144,14 @@ const loadMoreEl = document.getElementById('loadMore');
 const floatingPost = document.getElementById('floatingPost');
 const notifDot = document.getElementById("notifDot");
 
-const videoViewer = document.getElementById('videoViewer');
-const viewerTrack = document.getElementById('viewerTrack');
-const viewerClose = document.getElementById('viewerClose');
-
 floatingPost.addEventListener('click', ()=>location.href='post.html');
-viewerClose.addEventListener('click', closeViewer);
 
-/* ===== Notification red dot logic (notifications collection) ===== */
+/* ===== Notification red dot (friend requests & unread chats & notifications) ===== */
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
   const uid = user.uid;
 
+  // Watch notifications collection for unseen notifications to this user
   const notifQ = query(collection(db,"notifications"), orderBy("createdAt","desc"));
   onSnapshot(notifQ, snap=>{
     const hasNew = snap.docs.some(d=>{
@@ -194,6 +159,32 @@ onAuthStateChanged(auth, async (user) => {
       return dt.to === uid && !dt.seen;
     });
     notifDot.style.display = hasNew ? "inline-block" : "none";
+  });
+
+  // Friend requests
+  onSnapshot(collection(db, "friendRequests"), snap => {
+    const hasNewReq = snap.docs.some(doc => {
+      const data = doc.data();
+      return data.to === uid && !data.seen;
+    });
+    if (hasNewReq) notifDot.style.display = "inline-block";
+  });
+
+  // Unread chats (light check)
+  const followingRef = collection(db, "users", uid, "following");
+  onSnapshot(followingRef, async snap => {
+    let hasUnread = false;
+    for (const docSnap of snap.docs) {
+      const friendUid = docSnap.id;
+      const chatId = [uid, friendUid].sort().join("_");
+      const messagesRef = collection(db, "chats", chatId, "messages");
+      const msgsSnap = await getDocs(messagesRef);
+      if (msgsSnap.docs.some(m => m.data().uid !== uid && !(m.data().readBy?.includes(uid)))) {
+        hasUnread = true;
+        break;
+      }
+    }
+    if (hasUnread) notifDot.style.display = "inline-block";
   });
 });
 
@@ -212,7 +203,7 @@ async function getUserProfile(uid){
   return userDoc.exists() ? userDoc.data() : null;
 }
 
-/* ===== Render single post card (with tags & share) ===== */
+/* ===== Render post card (with tags and shared post support) ===== */
 async function renderPostCard(postId, data){
   const card = document.createElement('div');
   card.className = 'post-card';
@@ -229,7 +220,10 @@ async function renderPostCard(postId, data){
   const displayName = profile?.fullName || profile?.displayName || data.name || 'Unknown';
   const photoURL = profile?.photoURL || '';
 
+  // build tagged user placeholders (actual names loaded later)
   const tagsHtml = (data.tags?.length) ? `<div class="small-muted">Tagged: ${data.tags.map(uid=>`<span class="taggedUser" data-uid="${uid}">@user</span>`).join(" ")}</div>` : "";
+
+  // Post text (show own text and optionally shared content)
   const ownText = data.text ? `<div class="post-text">${escapeHtml(data.text)}</div>` : "";
   const sharedHtml = sharedData ? `
     <div class="shared-box">
@@ -294,22 +288,14 @@ async function renderPostCard(postId, data){
     });
   }
 
-  // append own media (and wire video click to viewer)
+  // append own media
   const imgBox = card.querySelector(`#img-${postId}`);
   if(data.mediaUrls?.length){
-    data.mediaUrls.forEach((url, idx)=>{
+    data.mediaUrls.forEach(url=>{
       if(url.match(/\.(mp4|webm|ogg)$/)){
         const video = document.createElement('video');
-        video.src = url;
-        video.controls = false;
-        video.muted = true;
-        video.loop = true;
+        video.src = url; video.controls = true;
         video.style.maxWidth = data.mediaUrls.length===1?'100%':'48%';
-        video.dataset.postId = postId;
-        video.dataset.index = idx;
-        video.addEventListener('click', ()=> openViewerForVideo(postId, url));
-        // show a play overlay hint (small)
-        video.style.cursor = 'pointer';
         imgBox.appendChild(video);
       } else {
         const img = document.createElement('img');
@@ -320,13 +306,13 @@ async function renderPostCard(postId, data){
     });
   }
 
-  // name click
+  // Name click
   card.querySelector('.post-name').onclick = e=>{
     const uid = e.target.dataset.uid;
     location.href = `profile.html?uid=${uid}`;
   };
 
-  // populate tag names
+  // Populate tag names (replace @user placeholders)
   if(data.tags?.length){
     data.tags.forEach(async (uid) => {
       const el = card.querySelector(`.taggedUser[data-uid="${uid}"]`);
@@ -338,7 +324,7 @@ async function renderPostCard(postId, data){
     });
   }
 
-  // LIKE
+  // LIKE system
   const likeBtn = card.querySelector(`#like-${postId}`);
   likeBtn.onclick = async ()=>{
     if(!currentUser) return alert('Login first');
@@ -358,7 +344,7 @@ async function renderPostCard(postId, data){
     };
   }
 
-  // FOLLOW
+  // FOLLOW button
   const fbtn = card.querySelector(`#follow-${postId}`);
   if(fbtn){
     fbtn.onclick = async ()=>{
@@ -417,6 +403,7 @@ async function renderPostCard(postId, data){
   const shareBtn = card.querySelector(`#share-${postId}`);
   shareBtn.onclick = async ()=>{
     if(!currentUser) return alert("Login first");
+    // create a lightweight shared post that references sharedFrom
     await addDoc(collection(db,'posts'),{
       uid: currentUser.uid,
       name: currentUser.displayName || currentUser.email,
@@ -443,13 +430,13 @@ async function renderPostCard(postId, data){
   postsContainer.appendChild(card);
 }
 
-/* ===== Pagination & loading ===== */
+/* ===== Load posts with pagination ===== */
 async function loadPosts(initial=false){
   if(loading || finished) return;
   loading = true;
 
   let q = query(collection(db,'posts'),orderBy('createdAt','desc'),limit(PAGE_SIZE));
-  if(!initial && lastVisible)
+  if(!initial && lastVisible) 
     q = query(collection(db,'posts'),orderBy('createdAt','desc'),
       startAfter(lastVisible),limit(PAGE_SIZE));
 
@@ -466,7 +453,7 @@ async function loadPosts(initial=false){
   loading=false;
 }
 
-/* ===== Infinite scroll trigger ===== */
+/* ===== Infinite scroll ===== */
 window.addEventListener('scroll',()=>{
   if((window.innerHeight + window.scrollY) >= document.body.offsetHeight-120){
     loadPosts();
@@ -476,137 +463,6 @@ window.addEventListener('scroll',()=>{
 /* ===== Initial load ===== */
 loadPosts(true);
 
-/* ===== VIDEO VIEWER: find all video posts and show vertical scroller ===== */
-let lastVideoList = []; // [{postId, url, name, uid, createdAt, mediaUrls, text}]
-async function buildVideoList(){
-  // load all posts that have mediaUrls and at least one video
-  const q = query(collection(db,'posts'), orderBy('createdAt','desc'));
-  const snap = await getDocs(q);
-  const vids = [];
-  snap.docs.forEach(d=>{
-    const dt = d.data();
-    if(dt.mediaUrls?.length){
-      // keep only video urls but still allow posts that mix media
-      const videoUrls = dt.mediaUrls.filter(u => u.match(/\.(mp4|webm|ogg)$/));
-      if(videoUrls.length) vids.push({ id: d.id, data: dt, videoUrls });
-    }
-  });
-  lastVideoList = vids;
-  return vids;
-}
-
-// Open viewer and position at the clicked video url (postId + url)
-async function openViewerForVideo(clickedPostId, clickedUrl){
-  const vids = await buildVideoList();
-  if(!vids.length) return;
-
-  // build slides
-  viewerTrack.innerHTML = '';
-  vids.forEach((item, idx) => {
-    // choose the appropriate video inside this post - prefer clickedUrl when matching
-    const url = (item.videoUrls.includes(clickedUrl)) ? clickedUrl : item.videoUrls[0];
-    const slide = document.createElement('div');
-    slide.className = 'video-slide';
-    slide.dataset.postId = item.id;
-    slide.innerHTML = `
-      <video src="${url}" playsinline preload="metadata" controls></video>
-      <div class="viewer-info">
-        <div class="name">${escapeHtml(item.data.name || 'Unknown')}</div>
-        <div class="small-muted">${formatTime(item.data.createdAt)}</div>
-        <div style="margin-top:8px;max-width:420px">${escapeHtml(item.data.text || '')}</div>
-      </div>
-      <div class="viewer-controls">
-        <button class="btn likeBtnSmall">❤️</button>
-      </div>
-    `;
-    // start videos muted; we'll unmute on user control
-    viewerTrack.appendChild(slide);
-  });
-
-  // make viewer visible
-  videoViewer.classList.add('active');
-  videoViewer.setAttribute('aria-hidden','false');
-
-  // scroll to clicked item
-  const clickedIndex = vids.findIndex(v => v.id === clickedPostId);
-  if(clickedIndex >= 0){
-    // small delay to ensure slides rendered
-    setTimeout(()=> {
-      const child = viewerTrack.children[clickedIndex];
-      if(child) child.scrollIntoView({behavior:'auto', block:'start'});
-      // autoplay the visible video
-      playVisibleVideo();
-    }, 60);
-  }
-
-  // handle scroll -> autoplay visible video
-  viewerTrack.addEventListener('scroll', onViewerScroll);
-  // pause videos when closing
-  videoViewer.addEventListener('click', onViewerClickOutside);
-  window.addEventListener('keydown', onViewerKeydown);
-}
-
-// helper: play only fully visible video
-function playVisibleVideo(){
-  const slides = Array.from(viewerTrack.querySelectorAll('.video-slide'));
-  slides.forEach(slide=>{
-    const rect = slide.getBoundingClientRect();
-    const vid = slide.querySelector('video');
-    if(rect.top >= 0 && rect.bottom <= window.innerHeight + 10){
-      try{ vid.currentTime = 0; vid.play(); vid.muted = false; } catch(e){}
-    } else {
-      try{ vid.pause(); } catch(e){}
-    }
-  });
-}
-
-let viewerScrollTimeout = null;
-function onViewerScroll(){
-  if(viewerScrollTimeout) clearTimeout(viewerScrollTimeout);
-  viewerScrollTimeout = setTimeout(()=> playVisibleVideo(), 120);
-}
-
-function closeViewer(){
-  // stop and clear
-  const vids = viewerTrack.querySelectorAll('video');
-  vids.forEach(v=>{ try{ v.pause(); v.src=''; } catch(e){} });
-  viewerTrack.innerHTML = '';
-  videoViewer.classList.remove('active');
-  videoViewer.setAttribute('aria-hidden','true');
-  viewerTrack.removeEventListener('scroll', onViewerScroll);
-  videoViewer.removeEventListener('click', onViewerClickOutside);
-  window.removeEventListener('keydown', onViewerKeydown);
-}
-
-function onViewerClickOutside(e){
-  // clicks on controls or video shouldn't close; clicks on background should
-  const isInside = e.target.closest('.video-slide') || e.target.classList.contains('closeBtn') || e.target.closest('video');
-  if(!isInside) closeViewer();
-}
-
-function onViewerKeydown(e){
-  if(e.key === 'Escape') closeViewer();
-  if(e.key === 'ArrowDown' || e.key === 'PageDown'){
-    viewerTrack.scrollBy({top: window.innerHeight, behavior: 'smooth'});
-  }
-  if(e.key === 'ArrowUp' || e.key === 'PageUp'){
-    viewerTrack.scrollBy({top: -window.innerHeight, behavior: 'smooth'});
-  }
-}
-
-/* ===== Utility: click on a thumbnail video should open the viewer (wired in renderPostCard) ===== */
-/* Already wired: in renderPostCard we call openViewerForVideo(postId, url) on click */
-
-/* ===== Accessibility: pause videos when leaving page ===== */
-window.addEventListener('visibilitychange', ()=>{
-  if(document.hidden){
-    // pause viewer videos if open
-    const vids = viewerTrack.querySelectorAll('video');
-    vids.forEach(v=>v.pause());
-  } else {
-    playVisibleVideo();
-  }
-});
 </script>
 </body>
-  </html>
+</html>
