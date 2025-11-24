@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Homepage</title>
 <style>
-.floating-post{--primary:#606CF9;--accent:#ff6e6e}
+:root{--primary:#606CF9;--accent:#ff6e6e}
 body{font-family:sans-serif;background:#f4f6ff;margin:0;padding:20px;}
 .hotbar{display:flex;gap:10px;margin-bottom:14px}
 .hotbar button{padding:10px 16px;border:none;border-radius:10px;background:var(--primary);color:#fff;cursor:pointer;position:relative}
-#feed{max-width:800px;margin:0 auto}
+#feed{max-width:900px;margin:0 auto}
 .post-card{background:#fff;padding:16px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.08);margin-bottom:16px}
 .post-header{display:flex;align-items:center;gap:12px}
 .avatar{width:48px;height:48px;border-radius:999px;background:linear-gradient(135deg,#cfe1ff,#e7dfff);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;overflow:hidden}
@@ -51,16 +51,25 @@ textarea.comment-input{width:100%;padding:8px;border-radius:8px;border:1px solid
 #videoViewer {
   position:fixed;
   inset:0;
-  background:black;
+  background:rgba(0,0,0,0.98);
   display:none;
   z-index:9999999;
   overflow:hidden;
   touch-action:none;
 }
-#viewerSlide { position:absolute; inset:0; display:flex; justify-content:center; align-items:center; }
-#viewerVideo { width:100%; height:100%; object-fit:contain; background:black; }
+#viewerContent { position:absolute; inset:0; display:flex; justify-content:center; align-items:center; }
+.viewerImage, #viewerVideo { max-width:100%; max-height:100%; object-fit:contain; border-radius:6px; background:black; }
+#viewerVideo { display:block; width:100%; height:100%; }
+#viewerTopControls { position:absolute; top:18px; right:18px; z-index:40; display:flex; gap:10px; align-items:center; }
+.viewerBtn { background:rgba(0,0,0,0.45); border:none; color:white; padding:8px 10px; border-radius:8px; font-size:18px; cursor:pointer; }
 
-/* make the post images clickable pointer feel */
+/* Indicator */
+#viewerIndicator { position:absolute; top:18px; left:18px; color:#fff; font-size:14px; z-index:40; background:rgba(0,0,0,0.35); padding:6px 8px; border-radius:8px; }
+
+/* hide the native outline for video on mobile */
+video::-webkit-media-controls { display:none !important; }
+
+/* preview active press */
 .post-images img, .post-images video { transition: transform .12s ease; }
 .post-images img:active, .post-images video:active { transform: scale(.98); }
 </style>
@@ -68,48 +77,26 @@ textarea.comment-input{width:100%;padding:8px;border-radius:8px;border:1px solid
 <body>
 
 <div class="hotbar">
-  <button onclick="location.href='profile.html'">   <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
-<svg width="25px" height="25px" viewBox="0 0 20 20" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-
-  <title>profile_round [#1342]</title>
-  <desc>Created with Sketch.</desc>
-  <defs>
-    
-  </defs>
-  <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
-    <g id="Dribbble-Light-Preview" transform="translate(-140.000000, -2159.000000)" fill="#000000">
-      <g id="icons" transform="translate(56.000000, 160.000000)">
-        <path d="M100.562548,2016.99998 L87.4381713,2016.99998 C86.7317804,2016.99998 86.2101535,2016.30298 86.4765813,2015.66198 C87.7127655,2012.69798 90.6169306,2010.99998 93.9998492,2010.99998 C97.3837885,2010.99998 100.287954,2012.69798 101.524138,2015.66198 C101.790566,2016.30298 101.268939,2016.99998 100.562548,2016.99998 M89.9166645,2004.99998 C89.9166645,2002.79398 91.7489936,2000.99998 93.9998492,2000.99998 C96.2517256,2000.99998 98.0830339,2002.79398 98.0830339,2004.99998 C98.0830339,2007.20598 96.2517256,2008.99998 93.9998492,2008.99998 C91.7489936,2008.99998 89.9166645,2007.20598 89.9166645,2004.99998 M103.955674,2016.63598 C103.213556,2013.27698 100.892265,2010.79798 97.837022,2009.67298 C99.4560048,2008.39598 100.400241,2006.33098 100.053171,2004.06998 C99.6509769,2001.44698 97.4235996,1999.34798 94.7348224,1999.04198 C91.0232075,1998.61898 87.8750721,2001.44898 87.8750721,2004.99998 C87.8750721,2006.88998 88.7692896,2008.57398 90.1636971,2009.67298 C87.1074334,2010.79798 84.7871636,2013.27698 84.044024,2016.63598 C83.7745338,2017.85698 84.7789973,2018.99998 86.0539717,2018.99998 L101.945727,2018.99998 C103.221722,2018.99998 104.226185,2017.85698 103.955674,2016.63598" id="profile_round-[#1342]">
-          
-        </path>
-      </g>
-    </g>
-  </g>
-</svg></button>
-  <button onclick="location.href='user.html'">
-    <?xml version="1.0" encoding="utf-8"?><!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
-<svg width="30px" height="30px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M13 20V18C13 15.2386 10.7614 13 8 13C5.23858 13 3 15.2386 3 18V20H13ZM13 20H21V19C21 16.0545 18.7614 14 16 14C14.5867 14 13.3103 14.6255 12.4009 15.6311M11 7C11 8.65685 9.65685 10 8 10C6.34315 10 5 8.65685 5 7C5 5.34315 6.34315 4 8 4C9.65685 4 11 5.34315 11 7ZM18 9C18 10.1046 17.1046 11 16 11C14.8954 11 14 10.1046 14 9C14 7.89543 14.8954 7 16 7C17.1046 7 18 7.89543 18 9Z" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-</svg>
+  <button onclick="location.href='profile.html'">
+    <!-- profile icon -->
+    <svg width="25px" height="25px" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 18a8 8 0 1 1 16 0H2z" fill="#fff" opacity="0.9"/></svg>
   </button>
+
+  <button onclick="location.href='user.html'">
+    <!-- users -->
+    <svg width="30px" height="30px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13 20V18C13 15.2386 10.7614 13 8 13C5.23858 13 3 15.2386 3 18V20H13ZM13 20H21V19C21 16.0545 18.7614 14 16 14" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
   <button id="notificationBtn" onclick="location.href='notification.html'">
-    <?xml version="1.0" encoding="utf-8"?><!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
-<svg width="40px" height="40px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path fill-rule="evenodd" clip-rule="evenodd" d="M6.31317 12.463C6.20006 9.29213 8.60976 6.6252 11.701 6.5C14.7923 6.6252 17.202 9.29213 17.0889 12.463C17.0889 13.78 18.4841 15.063 18.525 16.383C18.525 16.4017 18.525 16.4203 18.525 16.439C18.5552 17.2847 17.9124 17.9959 17.0879 18.029H13.9757C13.9786 18.677 13.7404 19.3018 13.3098 19.776C12.8957 20.2372 12.3123 20.4996 11.701 20.4996C11.0897 20.4996 10.5064 20.2372 10.0923 19.776C9.66161 19.3018 9.42346 18.677 9.42635 18.029H6.31317C5.48869 17.9959 4.84583 17.2847 4.87602 16.439C4.87602 16.4203 4.87602 16.4017 4.87602 16.383C4.91795 15.067 6.31317 13.781 6.31317 12.463Z" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-  <path d="M9.42633 17.279C9.01212 17.279 8.67633 17.6148 8.67633 18.029C8.67633 18.4432 9.01212 18.779 9.42633 18.779V17.279ZM13.9757 18.779C14.3899 18.779 14.7257 18.4432 14.7257 18.029C14.7257 17.6148 14.3899 17.279 13.9757 17.279V18.779ZM12.676 5.25C13.0902 5.25 13.426 4.91421 13.426 4.5C13.426 4.08579 13.0902 3.75 12.676 3.75V5.25ZM10.726 3.75C10.3118 3.75 9.97601 4.08579 9.97601 4.5C9.97601 4.91421 10.3118 5.25 10.726 5.25V3.75ZM9.42633 18.779H13.9757V17.279H9.42633V18.779ZM12.676 3.75H10.726V5.25H12.676V3.75Z" fill="#000000" />
-</svg>
+    <!-- bell -->
+    <svg width="40px" height="40px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 12a6 6 0 0 1 12 0v4h2v2H4v-2h2v-4z" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     <span id="notifDot"></span>
   </button>
-  
-  <button onclick="location.href='msglist.html'">
-    <?xml version="1.0" encoding="utf-8"?><!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
-<svg width="30px" height="30px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 13.5997 2.37562 15.1116 3.04346 16.4525C3.22094 16.8088 3.28001 17.2161 3.17712 17.6006L2.58151 19.8267C2.32295 20.793 3.20701 21.677 4.17335 21.4185L6.39939 20.8229C6.78393 20.72 7.19121 20.7791 7.54753 20.9565C8.88837 21.6244 10.4003 22 12 22Z" stroke="#1C274C" stroke-width="1.5"/>
-<path opacity="0.5" d="M8 12H8.009M11.991 12H12M15.991 12H16" stroke="#1C274C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
-  </button>
 
+  <button onclick="location.href='msglist.html'">
+    <!-- messages -->
+    <svg width="30px" height="30px" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
 </div>
 
 <div id="feed">
@@ -120,14 +107,20 @@ textarea.comment-input{width:100%;padding:8px;border-radius:8px;border:1px solid
 
 <div class="floating-post" id="floatingPost" title="Create post">+</div>
 
-<!-- ===== Fixed TikTok-style Video Viewer (single overlay) ===== -->
-<div id="videoViewer">
-    <button id="closeViewer" style="position:absolute;top:20px;right:20px;font-size:32px;background:none;color:white;border:none;z-index:20;">✕</button>
-    <div id="viewerSlide">
-        <video id="viewerVideo" autoplay muted playsinline></video>
-    </div>
-    <!-- transparent swipe layer above the video so we can catch touches -->
-    <div id="swipeLayer" style="position:absolute; inset:0; z-index:15;"></div>
+<!-- ===== Mixed-media Fullscreen Viewer (images + videos) ===== -->
+<div id="videoViewer" aria-hidden="true">
+  <div id="viewerTopControls">
+    <button id="closeViewer" class="viewerBtn" title="Close">✕</button>
+    <button id="soundToggle" class="viewerBtn" title="Toggle sound">🔇</button>
+  </div>
+  <div id="viewerIndicator" aria-hidden="true">0 / 0</div>
+
+  <div id="viewerContent">
+    <!-- we will insert either an <img class="viewerImage"> or <video id="viewerVideo"> -->
+  </div>
+
+  <!-- swipe layer sits above viewer content to capture gestures -->
+  <div id="swipeLayer" style="position:absolute; inset:0; z-index:30;"></div>
 </div>
 
 <script type="module">
@@ -230,84 +223,157 @@ async function getUserProfile(uid){
   return userDoc.exists() ? userDoc.data() : null;
 }
 
-/* ===== VIDEO VIEWER STATE & HANDLERS ===== */
-let allVideos = [];        // all video URLs from loaded posts
-let currentVideoIndex = 0; // index of the current video
+/* ===== Mixed-media feed state (images & videos) =====
+   feedItems is an array of items we can view in the fullscreen viewer.
+   Each item: { type: "video"|"image", url: string, postId: string }
+*/
+let feedItems = [];
+let viewerIndex = 0;
 
-const viewer = document.getElementById("videoViewer");
-const swipeLayer = document.getElementById("swipeLayer");
-const viewerVideo = document.getElementById("viewerVideo");
-const closeViewerBtn = document.getElementById("closeViewer");
+/* Viewer DOM refs */
+const viewer = document.getElementById('videoViewer');
+const viewerContent = document.getElementById('viewerContent');
+const swipeLayer = document.getElementById('swipeLayer');
+const closeViewerBtn = document.getElementById('closeViewer');
+const soundToggleBtn = document.getElementById('soundToggle');
+const viewerIndicator = document.getElementById('viewerIndicator');
 
+function updateIndicator() {
+  viewerIndicator.textContent = `${viewerIndex + 1} / ${feedItems.length}`;
+}
+
+/* Open viewer on an item index */
 function openViewer(index){
-  if(typeof index !== 'number' || index < 0 || index >= allVideos.length) return;
-  currentVideoIndex = index;
-  viewerVideo.src = allVideos[index];
-  viewer.style.display = "block";
-  // try play (some browsers require user gesture; clicking the video element counts)
-  viewerVideo.play().catch(()=>{ /* ignore autoplay block */ });
+  if(index < 0 || index >= feedItems.length) return;
+  viewerIndex = index;
+  renderViewerItem();
+  viewer.style.display = 'block';
+  document.body.style.overflow = 'hidden'; // disable background scroll
+  viewer.setAttribute('aria-hidden','false');
 }
 
+/* Close viewer */
 function closeViewer(){
-  viewer.style.display = "none";
-  try { viewerVideo.pause(); } catch(e){}
-  viewerVideo.src = "";
+  // remove content and pause any playing video
+  const vid = viewerContent.querySelector('video');
+  if(vid){ try{ vid.pause(); } catch(e){} }
+  viewerContent.innerHTML = '';
+  viewer.style.display = 'none';
+  document.body.style.overflow = ''; // restore scroll
+  viewer.setAttribute('aria-hidden','true');
 }
 
-/* Close events */
+/* Render current item inside viewerContent */
+function renderViewerItem(){
+  viewerContent.innerHTML = '';
+  if(!feedItems.length) return;
+  const it = feedItems[viewerIndex];
+  updateIndicator();
+
+  if(it.type === 'image'){
+    const img = document.createElement('img');
+    img.src = it.url;
+    img.className = 'viewerImage';
+    img.alt = '';
+    img.style.maxWidth = '95%';
+    img.style.maxHeight = '95%';
+    viewerContent.appendChild(img);
+    soundToggleBtn.style.display = 'none';
+  } else {
+    // video
+    const video = document.createElement('video');
+    video.src = it.url;
+    video.id = 'viewerVideo';
+    video.className = 'viewerVideo';
+    video.autoplay = true;
+    video.playsInline = true;
+    video.controls = false;
+    video.muted = false; // start unmuted once user opened viewer (tap counted)
+    video.style.maxWidth = '95%';
+    video.style.maxHeight = '95%';
+    viewerContent.appendChild(video);
+    soundToggleBtn.style.display = 'inline-block';
+    soundToggleBtn.textContent = video.muted ? '🔇' : '🔊';
+
+    // click to toggle play/pause
+    video.addEventListener('click', () => {
+      if(video.paused) video.play().catch(()=>{});
+      else video.pause();
+    });
+
+    // preload next video URL (for smoother transitions)
+    const next = feedItems[viewerIndex + 1];
+    if(next && next.type === 'video') {
+      const p = document.createElement('link');
+      p.rel = 'preload';
+      p.as = 'video';
+      p.href = next.url;
+      document.head.appendChild(p);
+      // cleanup after short delay
+      setTimeout(()=>{ try{ document.head.removeChild(p); } catch(e){} }, 5000);
+    }
+  }
+}
+
+/* Move to next or previous */
+function goToNext(){
+  if(viewerIndex < feedItems.length - 1){
+    viewerIndex++;
+    renderViewerItem();
+  }
+}
+function goToPrev(){
+  if(viewerIndex > 0){
+    viewerIndex--;
+    renderViewerItem();
+  }
+}
+
+/* Controls */
 closeViewerBtn.onclick = closeViewer;
+soundToggleBtn.onclick = () => {
+  const vid = viewerContent.querySelector('video');
+  if(!vid) return;
+  vid.muted = !vid.muted;
+  soundToggleBtn.textContent = vid.muted ? '🔇' : '🔊';
+};
+
+/* Keyboard navigation */
 document.addEventListener('keydown', (e) => {
-  if(viewer.style.display !== "block") return;
-  if(e.key === "Escape") closeViewer();
-  if(e.key === "ArrowDown" || e.key === "ArrowRight") {
-    if(currentVideoIndex < allVideos.length - 1) {
-      currentVideoIndex++;
-      viewerVideo.src = allVideos[currentVideoIndex];
-      viewerVideo.play().catch(()=>{});
-    }
-  }
-  if(e.key === "ArrowUp" || e.key === "ArrowLeft") {
-    if(currentVideoIndex > 0) {
-      currentVideoIndex--;
-      viewerVideo.src = allVideos[currentVideoIndex];
-      viewerVideo.play().catch(()=>{});
-    }
-  }
+  if(viewer.style.display !== 'block') return;
+  if(e.key === 'Escape') return closeViewer();
+  if(e.key === 'ArrowDown' || e.key === 'ArrowRight') return goToNext();
+  if(e.key === 'ArrowUp' || e.key === 'ArrowLeft') return goToPrev();
 });
 
-/* Touch swipe handling on the swipeLayer */
-let startY = 0;
-let lastY = 0;
-
-swipeLayer.addEventListener("touchstart", (e) => {
-  startY = e.touches[0].clientY;
-  lastY = startY;
-}, {passive:true});
-
-swipeLayer.addEventListener("touchmove", (e) => {
-  lastY = e.touches[0].clientY;
-}, {passive:true});
-
-swipeLayer.addEventListener("touchend", (e) => {
+/* Swipe detection on swipeLayer */
+let startY = 0, lastY = 0;
+swipeLayer.addEventListener('touchstart', (e)=>{ startY = e.touches[0].clientY; lastY = startY; }, {passive:true});
+swipeLayer.addEventListener('touchmove', (e)=>{ lastY = e.touches[0].clientY; }, {passive:true});
+swipeLayer.addEventListener('touchend', (e)=>{
   const diff = startY - lastY;
-  if(Math.abs(diff) < 50) return; // threshold
-
-  if(diff > 50) {
-    // swipe up -> next
-    if(currentVideoIndex < allVideos.length - 1) {
-      currentVideoIndex++;
-      viewerVideo.src = allVideos[currentVideoIndex];
-      viewerVideo.play().catch(()=>{});
-    }
-  } else {
-    // swipe down -> previous
-    if(currentVideoIndex > 0) {
-      currentVideoIndex--;
-      viewerVideo.src = allVideos[currentVideoIndex];
-      viewerVideo.play().catch(()=>{});
-    }
-  }
+  if(Math.abs(diff) < 50) return;
+  if(diff > 50) goToNext();
+  else goToPrev();
 }, {passive:true});
+
+/* also capture mouse wheel for desktops when viewer open (vertical wheel -> next/prev) */
+let wheelTimeout = null;
+swipeLayer.addEventListener('wheel', (e)=>{
+  if(viewer.style.display !== 'block') return;
+  if(Math.abs(e.deltaY) < 30) return;
+  if(e.deltaY > 0) goToNext();
+  else goToPrev();
+  // throttle
+  clearTimeout(wheelTimeout);
+  wheelTimeout = setTimeout(()=>{}, 200);
+});
+
+/* Clicking outside content closes viewer */
+viewer.addEventListener('click', (e)=>{
+  // if click target is viewer (background) or swipeLayer, close
+  if(e.target.id === 'videoViewer' || e.target.id === 'swipeLayer') closeViewer();
+});
 
 /* ===== Render post card (with tags and shared post support) ===== */
 async function renderPostCard(postId, data){
@@ -326,10 +392,7 @@ async function renderPostCard(postId, data){
   const displayName = profile?.fullName || profile?.displayName || data.name || 'Unknown';
   const photoURL = profile?.photoURL || '';
 
-  // build tagged user placeholders (actual names loaded later)
   const tagsHtml = (data.tags?.length) ? `<div class="small-muted">Tagged: ${data.tags.map(uid=>`<span class="taggedUser" data-uid="${uid}">@user</span>`).join(" ")}</div>` : "";
-
-  // Post text (show own text and optionally shared content)
   const ownText = data.text ? `<div class="post-text">${escapeHtml(data.text)}</div>` : "";
   const sharedHtml = sharedData ? `
     <div class="shared-box">
@@ -360,31 +423,25 @@ async function renderPostCard(postId, data){
 
     <div class="actions">
       <button class="btn like-btn" id="like-${postId}">
-        <!-- heart icon as before -->
-        <svg fill="#000000" width="25px" height="25px" viewBox="0 0 544.582 544.582" xmlns="http://www.w3.org/2000/svg"><g><path d="M448.069,57.839c-72.675-23.562-150.781,15.759-175.721,87.898C247.41,73.522,169.303,34.277,96.628,57.839C23.111,81.784-16.975,160.885,6.894,234.708c22.95,70.38,235.773,258.876,263.006,258.876c27.234,0,244.801-188.267,267.751-258.876C561.595,160.732,521.509,81.631,448.069,57.839z"/></g></svg>
+        <svg fill="#000000" width="25" height="25" viewBox="0 0 24 24"><path d="M12 21s-7-4.35-9-7c-2.1-2.9-1.1-6 1.6-7.4C7.1 6 8.7 6 10 7.4L12 9l2-1.6c1.3-1.4 2.9-1.4 5.4-0.8 2.6 1.4 3.6 4.5 1.6 7.4-2 2.7-9 7-9 7z"/></svg>
       </button>
       <span class="likes-count" id="likes-${postId}">0</span>
 
       <button class="btn comment-btn" id="toggle-${postId}">
         <!-- comment icon -->
-        <svg width="30px" height="30px" viewBox="0 -0.5 25 25" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M5.5 12C5.49988 14.613 6.95512 17.0085 9.2741 18.2127C11.5931 19.4169 14.3897 19.2292 16.527 17.726L19.5 18V12C19.5 8.13401 16.366 5 12.5 5C8.63401 5 5.5 8.13401 5.5 12Z" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /><path d="M9.5 13.25C9.08579 13.25 8.75 13.5858 8.75 14C8.75 14.4142 9.08579 14.75 9.5 14.75V13.25ZM13.5 14.75C13.9142 14.75 14.25 14.4142 14.25 14C14.25 13.5858 13.9142 13.25 13.5 13.25V14.75ZM9.5 10.25C9.08579 10.25 8.75 10.5858 8.75 11C8.75 11.4142 9.08579 11.75 9.5 11.75V10.25ZM15.5 11.75C15.9142 11.75 16.25 11.4142 16.25 11C16.25 10.5858 15.9142 10.25 15.5 10.25V11.75ZM9.5 14.75H13.5V13.25H9.5V14.75ZM9.5 11.75H15.5V10.25H9.5V11.75Z" fill="#000000" /></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z" stroke="#fff" stroke-width="0" /></svg>
       </button>
 
-      <button class="btn share-btn" id="share-${postId}">
-        <!-- share icon -->
-        <svg width="25px" height="25px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9.61109 12.4L10.8183 18.5355C11.0462 19.6939 12.6026 19.9244 13.1565 18.8818L19.0211 7.84263C19.248 7.41555 19.2006 6.94354 18.9737 6.58417M9.61109 12.4L5.22642 8.15534C4.41653 7.37131 4.97155 6 6.09877 6H17.9135C18.3758 6 18.7568 6.24061 18.9737 6.58417M9.61109 12.4L18.9737 6.58417M19.0555 6.53333L18.9737 6.58417" stroke="#000000" stroke-width="2" /></svg>
-      </button>
+      <button class="btn share-btn" id="share-${postId}">Share</button>
 
       <span class="views-count" id="views-${postId}">0 views</span>
 
-      ${currentUser?.uid === data.uid ? `<button class="btn delete-btn" id="del-${postId}"><svg width="25px" height="25px" viewBox="0 -0.5 21 21" xmlns="http://www.w3.org/2000/svg"><path d="M130.35,216 L132.45,216 L132.45,208 L130.35,208 L130.35,216 Z M134.55,216 L136.65,216 L136.65,208 L134.55,208 L134.55,216 Z M128.25,218 L138.75,218 L138.75,206 L128.25,206 L128.25,218 Z M130.35,204 L136.65,204 L136.65,202 L130.35,202 L130.35,204 Z M138.75,204 L138.75,200 L128.25,200 L128.25,204 L123,204 L123,206 L126.15,206 L126.15,220 L140.85,220 L140.85,206 L144,206 L144,204 L138.75,204 Z"/></svg></button>` : ""}
+      ${currentUser?.uid === data.uid ? `<button class="btn delete-btn" id="del-${postId}">Delete</button>` : ""}
     </div>
 
     <div class="comments-area" id="carea-${postId}" style="display:none">
       <textarea id="cinput-${postId}" class="comment-input" placeholder="Write a comment…"></textarea>
-      <button class="btn comment-btn" id="cpost-${postId}">
-        <svg width="25px" height="25px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20.7639 12H10.0556M3 8.00003H5.5M4 12H5.5M4.5 16H5.5M9.96153 12.4896L9.07002 15.4486C8.73252 16.5688 8.56376 17.1289 8.70734 17.4633C8.83199 17.7537 9.08656 17.9681 9.39391 18.0415C9.74792 18.1261 10.2711 17.8645 11.3175 17.3413L19.1378 13.4311C20.059 12.9705 20.5197 12.7402 20.6675 12.4285C20.7961 12.1573 20.7961 11.8427 20.6675 11.5715C20.5197 11.2598 20.059 11.0295 19.1378 10.5689L11.3068 6.65342C10.2633 6.13168 9.74156 5.87081 9.38789 5.95502C9.0808 6.02815 8.82627 6.24198 8.70128 6.53184C8.55731 6.86569 8.72427 7.42461 9.05819 8.54246L9.96261 11.5701C10.0137 11.7411 10.0392 11.8266 10.0493 11.9137C10.0583 11.991 10.0582 12.069 10.049 12.1463C10.0387 12.2334 10.013 12.3188 9.96153 12.4896Z" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
+      <button class="btn comment-btn" id="cpost-${postId}">Post</button>
       <div id="clist-${postId}" class="clist"></div>
     </div>
   `;
@@ -405,35 +462,45 @@ async function renderPostCard(postId, data){
     });
   }
 
-  // append own media
+  // append own media (and push into feedItems array for viewer)
   const imgBox = card.querySelector(`#img-${postId}`);
   if(data.mediaUrls?.length){
     data.mediaUrls.forEach(url=>{
-      if(url.match(/\.(mp4|webm|ogg)$/)){
-        // create a small inline video preview element (no controls so clicks open viewer)
+      const isVideo = !!url.match(/\.(mp4|webm|ogg)$/i);
+      if(isVideo){
         const video = document.createElement('video');
         video.src = url;
-        video.controls = false;    // IMPORTANT: prevent the video from stealing touch events
-        video.muted = true;
+        video.controls = false;    // preview no controls
+        video.muted = true;        // muted preview
         video.playsInline = true;
         video.style.maxWidth = data.mediaUrls.length===1 ? '100%' : '48%';
         video.style.cursor = 'pointer';
+        video.preload = 'metadata';
 
-        // Add to global video list and capture index
-        const vidIndex = allVideos.push(url) - 1;
+        // add to viewer feed
+        const idx = feedItems.push({type:'video', url, postId}) - 1;
 
-        // Clicking the inline preview opens the custom viewer overlay (works on mobile)
+        // clicking opens viewer at that index
         video.addEventListener('click', (e)=>{
           e.stopPropagation();
-          openViewer(vidIndex);
+          openViewer(idx);
         });
 
         imgBox.appendChild(video);
-
       } else {
         const img = document.createElement('img');
         img.src = url;
-        img.style.maxWidth = data.mediaUrls.length===1?'100%':'48%';
+        img.style.maxWidth = data.mediaUrls.length===1 ? '100%' : '48%';
+        img.style.cursor = 'pointer';
+
+        // add to viewer feed
+        const idx = feedItems.push({type:'image', url, postId}) - 1;
+
+        img.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          openViewer(idx);
+        });
+
         imgBox.appendChild(img);
       }
     });
@@ -598,4 +665,4 @@ loadPosts(true);
 
 </script>
 </body>
-	</html>
+	  </html>
