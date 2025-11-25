@@ -115,12 +115,27 @@ async function uploadToCloudinary(file,onProgress){
   const formData=new FormData();
   formData.append('file',file);
   formData.append('upload_preset','bc0uzx6v');
-  formData.append('transformation','{"quality":"auto","fetch_format":"auto"}');
+
+  // Max compression safe parameters
+  formData.append('quality','auto:eco');
+  formData.append('fetch_format','auto');
 
   return new Promise((resolve,reject)=>{
-    const xhr=new XMLHttpRequest();xhr.open('POST',url);
-    xhr.upload.onprogress=e=>{if(e.lengthComputable&&onProgress){onProgress(Math.round((e.loaded/e.total)*100));}};
-    xhr.onload=()=>{if(xhr.status===200){resolve(JSON.parse(xhr.responseText).secure_url);}else reject(xhr.responseText)};
+    const xhr=new XMLHttpRequest();
+    xhr.open('POST',url);
+
+    xhr.upload.onprogress=e=>{
+      if(e.lengthComputable && onProgress){
+        onProgress(Math.round((e.loaded/e.total)*100));
+      }
+    };
+
+    xhr.onload=()=>{
+      if(xhr.status===200){
+        resolve(JSON.parse(xhr.responseText).secure_url);
+      } else reject(xhr.responseText);
+    };
+
     xhr.onerror=()=>reject('Upload failed');
     xhr.send(formData);
   });
