@@ -1,38 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1702629458692949"
-     crossorigin="anonymous"></script>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Create Post</title>
-<style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Create Post (Max Compression Mode)</title>
+  <style>
 body{font-family:sans-serif;background:#f4f6ff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
 .card{background:#fff;padding:20px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.08);width:420px;position:relative}
 textarea{width:100%;height:100px;padding:10px;border-radius:8px;border:1px solid #ddd;resize:vertical}
 input[type=file]{margin-top:8px}
 .img-preview{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-.img-preview img, .img-preview video{height:80px;border-radius:8px;object-fit:cover}
+.img-preview img,.img-preview video{height:80px;border-radius:8px;object-fit:cover}
 .btn{padding:10px 14px;border:none;border-radius:8px;background:#6e8ef5;color:#fff;cursor:pointer}
 .btn.cancel{background:#ddd;color:#222}
 .small{font-size:13px;color:#666;margin-top:8px}
 .progress{height:8px;background:#eee;border-radius:8px;margin-top:8px;overflow:hidden;position:relative}
 .progress i{display:block;height:100%;background:#6e8ef5;width:0%}
 .progress span{position:absolute;top:-22px;right:0;font-size:12px;color:#333}
-
-/* Tag suggestion */
-#tagSuggestions { position:absolute; z-index:999; width:360px; max-height:200px; overflow:auto; background:#fff; border:1px solid #ddd; border-radius:8px; display:none; }
+#tagSuggestions{position:absolute;z-index:999;width:360px;max-height:200px;overflow:auto;background:#fff;border:1px solid #ddd;border-radius:8px;display:none}
 #tagSuggestions div{padding:8px;cursor:pointer}
 #tagSuggestions div:hover{background:#f0f2ff}
-</style>
+  </style>
 </head>
 <body>
 <div class="card">
   <h3>Create a Post</h3>
   <textarea id="postText" placeholder="What's on your mind?"></textarea>
-
   <div id="tagSuggestions"></div>
-
   <div class="small">Attach images/videos (max 6)</div>
   <input type="file" id="media" accept="image/*,video/*" multiple />
   <div class="img-preview" id="preview"></div>
@@ -47,215 +41,166 @@ input[type=file]{margin-top:8px}
 </div>
 
 <script type="module">
-/* ===== Firebase & imports ===== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import {
-  getFirestore, collection, addDoc, serverTimestamp, updateDoc, getDocs, doc, getDoc, setDoc
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
-  authDomain: "swipe-f90ed.firebaseapp.com",
-  projectId: "swipe-f90ed",
-  storageBucket: "swipe-f90ed.appspot.com",
-  messagingSenderId: "360540214416",
-  appId: "1:360540214416:web:3e92fe77e5c93283d47415",
-  measurementId: "G-4SV32V4N0N"
-};
+const firebaseConfig={apiKey:"AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",authDomain:"swipe-f90ed.firebaseapp.com",projectId:"swipe-f90ed",storageBucket:"swipe-f90ed.appspot.com",messagingSenderId:"360540214416",appId:"1:360540214416:web:3e92fe77e5c93283d47415"};
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getFirestore(app);
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+let currentUser=null;
+onAuthStateChanged(auth,u=>{currentUser=u});
 
-/* ===== State & DOM ===== */
-let currentUser = null;
-onAuthStateChanged(auth, u => {
-  currentUser = u;
-  if(!u) {
-    // if not logged in, redirect to index or show message
-    // location.href='index.html';
-  }
-});
+const postBtn=document.getElementById('postBtn');
+const cancelBtn=document.getElementById('cancelBtn');
+const mediaInput=document.getElementById('media');
+const preview=document.getElementById('preview');
+const progressEl=document.getElementById('progress');
+const progressBar=document.getElementById('progressbar');
+const progressPct=document.getElementById('progressPct');
+const postText=document.getElementById('postText');
+const tagSuggestions=document.getElementById('tagSuggestions');
 
-const postBtn = document.getElementById('postBtn');
-const cancelBtn = document.getElementById('cancelBtn');
-const mediaInput = document.getElementById('media');
-const preview = document.getElementById('preview');
-const progressEl = document.getElementById('progress');
-const progressBar = document.getElementById('progressbar');
-const progressPct = document.getElementById('progressPct');
-const postText = document.getElementById('postText');
-const tagSuggestions = document.getElementById('tagSuggestions');
+let selectedFiles=[];
+let allUsers=[];
+let detectedTags=[];
 
-let selectedFiles = [];
-let allUsers = [];
-let detectedTags = []; // store selected user uids for tags
-
-/* ===== Load users for tagging suggestions ===== */
 async function loadUsers(){
-  const snap = await getDocs(collection(db,'users'));
-  allUsers = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+  const snap=await getDocs(collection(db,'users'));
+  allUsers=snap.docs.map(d=>({uid:d.id,...d.data()}));
 }
 loadUsers();
 
-/* ===== Media preview logic ===== */
-mediaInput.addEventListener('change', e => {
-  selectedFiles = Array.from(e.target.files).slice(0,6);
-  preview.innerHTML = '';
-  selectedFiles.forEach(file => {
-    const url = URL.createObjectURL(file);
+mediaInput.addEventListener('change',e=>{
+  selectedFiles=Array.from(e.target.files).slice(0,6);
+  preview.innerHTML='';
+  selectedFiles.forEach(file=>{
+    const url=URL.createObjectURL(file);
     if(file.type.startsWith('video/')){
-      const video = document.createElement('video');
-      video.src = url;
-      video.controls = true;
-      preview.appendChild(video);
-    } else {
-      const img = document.createElement('img');
-      img.src = url;
-      preview.appendChild(img);
+      const v=document.createElement('video');v.src=url;v.controls=true;preview.appendChild(v);
+    }else{
+      const img=document.createElement('img');img.src=url;preview.appendChild(img);
     }
   });
 });
 
-/* ===== Cloudinary upload helper ===== */
-async function uploadToCloudinary(file, onProgress){
-  const url = `https://api.cloudinary.com/v1_1/dkq1530ap/upload`;
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', 'bc0uzx6v');
-
-  return new Promise((resolve, reject)=>{
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', url);
-
-    xhr.upload.onprogress = e => {
-      if(e.lengthComputable && onProgress) {
-        const pct = Math.round((e.loaded / e.total) * 100);
-        onProgress(pct);
-      }
+/* ===================== MAX COMPRESSION ===================== */
+function optimizeImage(file,maxWidth=900,quality=0.55){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      let canvas=document.createElement('canvas');
+      const ratio=img.width/img.height;
+      if(img.width>maxWidth){canvas.width=maxWidth;canvas.height=maxWidth/ratio;}else{canvas.width=img.width;canvas.height=img.height;}
+      const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      canvas.toBlob(b=>resolve(new File([b],file.name.replace(/\.[^.]+$/,'.webp'),{type:'image/webp'})),'image/webp',quality);
     };
+    img.src=URL.createObjectURL(file);
+  });
+}
 
-    xhr.onload = () => {
-      if(xhr.status === 200){
-        const res = JSON.parse(xhr.responseText);
-        resolve(res.secure_url);
-      } else reject(`Cloudinary error: ${xhr.responseText}`);
-    };
+async function optimizeVideo(file,maxMB=8){
+  const sizeMB=file.size/1024/1024;
+  if(sizeMB<=maxMB)return file;
+  const newSize=maxMB*1024*1024;
+  const trimmed=file.slice(0,newSize);
+  return new File([trimmed],file.name,{type:file.type});
+}
 
-    xhr.onerror = () => reject('Upload error');
+/* ===================== Cloudinary Upload ===================== */
+async function uploadToCloudinary(file,onProgress){
+  const url=`https://api.cloudinary.com/v1_1/dkq1530ap/upload`;
+  const formData=new FormData();
+  formData.append('file',file);
+  formData.append('upload_preset','bc0uzx6v');
+  formData.append('transformation','{"quality":"auto","fetch_format":"auto"}');
+
+  return new Promise((resolve,reject)=>{
+    const xhr=new XMLHttpRequest();xhr.open('POST',url);
+    xhr.upload.onprogress=e=>{if(e.lengthComputable&&onProgress){onProgress(Math.round((e.loaded/e.total)*100));}};
+    xhr.onload=()=>{if(xhr.status===200){resolve(JSON.parse(xhr.responseText).secure_url);}else reject(xhr.responseText)};
+    xhr.onerror=()=>reject('Upload failed');
     xhr.send(formData);
   });
 }
 
-/* ===== Tagging UI: listen for @ and show suggestions ===== */
-postText.addEventListener('keyup', (e)=>{
-  const text = postText.value;
-  const cursorPos = postText.selectionStart;
-  const sliced = text.slice(0, cursorPos);
-  const match = sliced.match(/\@([a-zA-Z0-9 _\-\.]{1,30})$/);
-  if(!match){
-    tagSuggestions.style.display = "none";
-    return;
-  }
-  const queryStr = match[1].trim().toLowerCase();
-  if(!queryStr){ tagSuggestions.style.display="none"; return; }
+/* ===================== TAGGING ===================== */
+postText.addEventListener('keyup',e=>{
+  const text=postText.value;
+  const cursor=postText.selectionStart;
+  const sliced=text.slice(0,cursor);
+  const match=sliced.match(/\@([a-zA-Z0-9 _\-.]{1,30})$/);
+  if(!match){tagSuggestions.style.display='none';return;}
+  const q=match[1].trim().toLowerCase();
+  if(!q){tagSuggestions.style.display='none';return;}
 
-  const matches = allUsers.filter(u=>{
-    const name = (u.fullName || u.displayName || u.email || '').toLowerCase();
-    return name.includes(queryStr);
+  const results=allUsers.filter(u=>{
+    const name=(u.fullName||u.displayName||u.email||'').toLowerCase();return name.includes(q);
   }).slice(0,8);
 
-  if(matches.length===0){ tagSuggestions.style.display="none"; return; }
-  tagSuggestions.innerHTML = "";
-  matches.forEach(u=>{
-    const div = document.createElement('div');
-    div.textContent = (u.fullName || u.displayName || u.email || 'Unknown');
-    div.onclick = ()=>{
-      // replace the @token with the user's display name and add uid to detectedTags
-      const before = text.slice(0, cursorPos).replace(/\@([a-zA-Z0-9 _\-\.]{1,30})$/, `@${u.fullName || u.displayName || u.email}`);
-      const after = text.slice(cursorPos);
-      postText.value = before + " " + after;
-      detectedTags = Array.from(new Set([...detectedTags, u.uid]));
-      tagSuggestions.style.display="none";
-      postText.focus();
+  if(results.length===0){tagSuggestions.style.display='none';return;}
+
+  tagSuggestions.innerHTML='';
+  results.forEach(u=>{
+    const div=document.createElement('div');
+    const label=u.fullName||u.displayName||u.email;
+    div.textContent=label;
+    div.onclick=()=>{
+      const before=text.slice(0,cursor).replace(/\@([a-zA-Z0-9 _\-.]{1,30})$/,`@${label}`);
+      postText.value=before+" "+text.slice(cursor);
+      detectedTags=[...new Set([...detectedTags,u.uid])];
+      tagSuggestions.style.display='none';postText.focus();
     };
     tagSuggestions.appendChild(div);
   });
 
-  // position suggestions box under textarea (approx)
-  const rect = postText.getBoundingClientRect();
-  tagSuggestions.style.top = (rect.bottom + window.scrollY + 4) + 'px';
-  tagSuggestions.style.left = (rect.left + window.scrollX) + 'px';
-  tagSuggestions.style.display = 'block';
+  const rect=postText.getBoundingClientRect();
+  tagSuggestions.style.top=(rect.bottom+window.scrollY+4)+'px';
+  tagSuggestions.style.left=(rect.left+window.scrollX)+'px';
+  tagSuggestions.style.display='block';
 });
 
-/* ===== Post creation ===== */
-postBtn.addEventListener('click', async ()=>{
-  if(!currentUser) return alert('Please login first');
-  const text = postText.value.trim();
-  if(!text && selectedFiles.length===0) return alert('Write something or attach media');
+/* ===================== POST ===================== */
+postBtn.addEventListener('click',async()=>{
+  if(!currentUser)return alert('Login first');
+  if(!postText.value.trim()&&selectedFiles.length===0)return alert('Write something');
 
-  postBtn.disabled = true;
-  progressBar.style.width = '0%';
-  progressPct.innerText = '0%';
-  progressEl.style.display = 'block';
+  postBtn.disabled=true;
+  progressEl.style.display='block';progressBar.style.width='0%';progressPct.textContent='0%';
 
-  try {
-    // create the post doc first (so we have an id to reference in notifications)
-    const postRef = await addDoc(collection(db,'posts'),{
-      uid: currentUser.uid,
-      name: currentUser.displayName || currentUser.email,
-      text: text || '',
-      createdAt: serverTimestamp(),
-      mediaUrls: [],
-      tags: detectedTags
+  try{
+    const postRef=await addDoc(collection(db,'posts'),{
+      uid:currentUser.uid,
+      name:currentUser.displayName||currentUser.email,
+      text:postText.value.trim(),
+      createdAt:serverTimestamp(),
+      mediaUrls:[],
+      tags:detectedTags
     });
 
-    // If media - upload serially and update progress
-    let urls = [];
-    if(selectedFiles.length>0){
-      for(let i=0;i<selectedFiles.length;i++){
-        const url = await uploadToCloudinary(selectedFiles[i], pct=>{
-          // compute overall progress across files (approx)
-          const perFile = Math.round(( (i + pct/100) / selectedFiles.length) * 100);
-          progressBar.style.width = perFile + '%';
-          progressPct.innerText = perFile + '%';
-        });
-        urls.push(url);
-      }
-      await updateDoc(postRef, { mediaUrls: urls });
-      progressBar.style.width = '100%';
-      progressPct.innerText = '100%';
+    let urls=[];
+    for(let i=0;i<selectedFiles.length;i++){
+      let file=selectedFiles[i];
+      if(file.type.startsWith('image/'))file=await optimizeImage(file,900,0.55);
+      if(file.type.startsWith('video/'))file=await optimizeVideo(file,8);
+
+      const url=await uploadToCloudinary(file,p=>{
+        const overall=Math.round(((i+p/100)/selectedFiles.length)*100);
+        progressBar.style.width=overall+'%';progressPct.textContent=overall+'%';
+      });
+      urls.push(url);
     }
 
-    // Create notifications for tagged users
-    if(detectedTags.length > 0){
-      for(const uid of detectedTags){
-        await addDoc(collection(db,'notifications'),{
-          to: uid,
-          from: currentUser.uid,
-          postId: postRef.id,
-          type: 'tag',
-          seen: false,
-          createdAt: serverTimestamp()
-        });
-      }
-    }
+    await updateDoc(postRef,{mediaUrls:urls});
+    progressBar.style.width='100%';progressPct.textContent='100%';
 
-    alert('Post created successfully!');
-    location.href='homepage.html';
-  } catch(err){
-    console.error(err);
-    alert('Failed to post: '+err);
-    postBtn.disabled = false;
-    progressEl.style.display = 'none';
-  }
+    alert('Post created!');location.href='homepage.html';
+  }catch(err){console.error(err);alert('Failed: '+err);postBtn.disabled=false;progressEl.style.display='none';}
 });
 
-/* ===== Cancel button ===== */
-cancelBtn.addEventListener('click', ()=>location.href='homepage.html');
-
+cancelBtn.addEventListener('click',()=>location.href='homepage.html');
 </script>
 </body>
 </html>
