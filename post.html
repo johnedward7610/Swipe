@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Create Post (Max Compression Mode)</title>
-  <style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Create Post (Max Compression Mode)</title>
+<style>
 body{font-family:sans-serif;background:#f4f6ff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
 .card{background:#fff;padding:20px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.08);width:420px;position:relative}
-textarea{width:100%;height:100px;padding:10px;border-radius:8px;border:1px solid #ddd;resize:vertical}
+textarea{width:100%;height:100px;padding:10px;border-radius:8px;border:1px solid #ddd;resize:vertical;position:relative;z-index:1;background:transparent;color:#000;}
+.textarea-overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;padding:10px;border-radius:8px;white-space:pre-wrap;word-wrap:break-word;color:#000;}
 input[type=file]{margin-top:8px}
 .img-preview{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 .img-preview img,.img-preview video{height:80px;border-radius:8px;object-fit:cover}
@@ -20,11 +21,13 @@ input[type=file]{margin-top:8px}
 #tagSuggestions{position:absolute;z-index:999;width:360px;max-height:200px;overflow:auto;background:#fff;border:1px solid #ddd;border-radius:8px;display:none}
 #tagSuggestions div{padding:8px;cursor:pointer}
 #tagSuggestions div:hover{background:#f0f2ff}
-  </style>
+.tag-highlight{background:#d0e7ff;color:#003366;border-radius:4px;padding:0 2px;}
+</style>
 </head>
 <body>
-<div class="card">
+<div class="card" style="position:relative;">
   <h3>Create a Post</h3>
+  <div class="textarea-overlay" id="overlay"></div>
   <textarea id="postText" placeholder="What's on your mind?"></textarea>
   <div id="tagSuggestions"></div>
   <div class="small">Attach images/videos (max 6)</div>
@@ -62,6 +65,7 @@ const progressBar=document.getElementById('progressbar');
 const progressPct=document.getElementById('progressPct');
 const postText=document.getElementById('postText');
 const tagSuggestions=document.getElementById('tagSuggestions');
+const overlay=document.getElementById('overlay');
 
 let selectedFiles=[];
 let allUsers=[];
@@ -115,48 +119,58 @@ async function uploadToCloudinary(file,onProgress){
   const formData=new FormData();
   formData.append('file',file);
   formData.append('upload_preset','bc0uzx6v');
-
-  // Max compression safe parameters
   formData.append('quality','auto:eco');
   formData.append('fetch_format','auto');
-
   return new Promise((resolve,reject)=>{
     const xhr=new XMLHttpRequest();
     xhr.open('POST',url);
-
     xhr.upload.onprogress=e=>{
       if(e.lengthComputable && onProgress){
         onProgress(Math.round((e.loaded/e.total)*100));
       }
     };
-
     xhr.onload=()=>{
       if(xhr.status===200){
         resolve(JSON.parse(xhr.responseText).secure_url);
       } else reject(xhr.responseText);
     };
-
     xhr.onerror=()=>reject('Upload failed');
     xhr.send(formData);
   });
 }
 
 /* ===================== TAGGING ===================== */
+function updateOverlayHighlight(){
+  const text=postText.value;
+  let highlighted=text;
+  detectedTags.forEach(uid=>{
+    const user=allUsers.find(u=>u.uid===uid);
+    if(user){
+      const name=user.fullName||user.displayName||user.email;
+      const regex=new RegExp(`@${name}`,'g');
+      highlighted=highlighted.replace(regex,`<span class="tag-highlight">@${name}</span>`);
+    }
+  });
+  overlay.innerHTML=highlighted.replace(/\n/g,'<br>');
+}
+
+postText.addEventListener('input',()=>{
+  updateOverlayHighlight();
+});
+
 postText.addEventListener('keyup',e=>{
   const text=postText.value;
   const cursor=postText.selectionStart;
   const sliced=text.slice(0,cursor);
   const match=sliced.match(/\@([a-zA-Z0-9 _\-.]{1,30})$/);
   if(!match){tagSuggestions.style.display='none';return;}
-  const q=match[1].trim().toLowerCase();
-  if(!q){tagSuggestions.style.display='none';return;}
-
+  const query=match[1].toLowerCase();
+  if(!query){tagSuggestions.style.display='none';return;}
   const results=allUsers.filter(u=>{
-    const name=(u.fullName||u.displayName||u.email||'').toLowerCase();return name.includes(q);
+    const name=(u.fullName||u.displayName||u.email||'').toLowerCase();
+    return name.includes(query);
   }).slice(0,8);
-
   if(results.length===0){tagSuggestions.style.display='none';return;}
-
   tagSuggestions.innerHTML='';
   results.forEach(u=>{
     const div=document.createElement('div');
@@ -164,27 +178,34 @@ postText.addEventListener('keyup',e=>{
     div.textContent=label;
     div.onclick=()=>{
       const before=text.slice(0,cursor).replace(/\@([a-zA-Z0-9 _\-.]{1,30})$/,`@${label}`);
-      postText.value=before+" "+text.slice(cursor);
+      const after=text.slice(cursor);
+      postText.value=before+after;
       detectedTags=[...new Set([...detectedTags,u.uid])];
-      tagSuggestions.style.display='none';postText.focus();
+      updateOverlayHighlight();
+      tagSuggestions.style.display='none';
+      postText.focus();
+      postText.selectionStart = postText.selectionEnd = before.length;
     };
     tagSuggestions.appendChild(div);
   });
-
   const rect=postText.getBoundingClientRect();
   tagSuggestions.style.top=(rect.bottom+window.scrollY+4)+'px';
   tagSuggestions.style.left=(rect.left+window.scrollX)+'px';
   tagSuggestions.style.display='block';
 });
 
+document.addEventListener('click', e=>{
+  if(!tagSuggestions.contains(e.target) && e.target!==postText){
+    tagSuggestions.style.display='none';
+  }
+});
+
 /* ===================== POST ===================== */
 postBtn.addEventListener('click',async()=>{
   if(!currentUser)return alert('Login first');
   if(!postText.value.trim()&&selectedFiles.length===0)return alert('Write something');
-
   postBtn.disabled=true;
   progressEl.style.display='block';progressBar.style.width='0%';progressPct.textContent='0%';
-
   try{
     const postRef=await addDoc(collection(db,'posts'),{
       uid:currentUser.uid,
@@ -194,23 +215,19 @@ postBtn.addEventListener('click',async()=>{
       mediaUrls:[],
       tags:detectedTags
     });
-
     let urls=[];
     for(let i=0;i<selectedFiles.length;i++){
       let file=selectedFiles[i];
       if(file.type.startsWith('image/'))file=await optimizeImage(file,900,0.55);
       if(file.type.startsWith('video/'))file=await optimizeVideo(file,8);
-
       const url=await uploadToCloudinary(file,p=>{
         const overall=Math.round(((i+p/100)/selectedFiles.length)*100);
         progressBar.style.width=overall+'%';progressPct.textContent=overall+'%';
       });
       urls.push(url);
     }
-
     await updateDoc(postRef,{mediaUrls:urls});
     progressBar.style.width='100%';progressPct.textContent='100%';
-
     alert('Post created!');location.href='homepage.html';
   }catch(err){console.error(err);alert('Failed: '+err);postBtn.disabled=false;progressEl.style.display='none';}
 });
