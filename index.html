@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1702629458692949"
-     crossorigin="anonymous"></script>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Swipe Auth</title>
@@ -31,23 +29,11 @@ body.dark{
 .auth-btn:hover{background:var(--primary-light);}
 .switch-link{display:block;text-align:center;margin-top:14px;color:var(--primary);font-size:14px;cursor:pointer;}
 .theme-toggle{position:absolute;top:14px;right:14px;background:transparent;border:none;cursor:pointer;font-size:22px;color:var(--text);}
-#forgotPasswordSection, #otpSection{display:none;}
 .message{margin-top:10px;font-size:14px;}
 .message.success{color:green;}
 .message.error{color:red;}
-
-/* Password toggle */
 .password-group{position:relative;}
-.toggle-password{
-  position:absolute;
-  right:12px;
-  top:50%;
-  transform:translateY(-50%);
-  background:transparent;
-  border:none;
-  cursor:pointer;
-  font-size:16px;
-}
+.toggle-password{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:transparent;border:none;cursor:pointer;font-size:16px;}
 </style>
 </head>
 
@@ -59,7 +45,7 @@ body.dark{
     <!-- LOGIN -->
     <div id="loginSection">
       <h2 class="auth-title">Welcome Back</h2>
-      <p class="auth-desc">Log in to continue your journey.</p>
+      <p class="auth-desc">Log in to continue.</p>
       <div class="input-group">
         <label>Email</label>
         <input type="email" id="loginEmail" placeholder="Enter your email" required/>
@@ -72,12 +58,13 @@ body.dark{
       <button class="auth-btn" id="loginBtn">Log In</button>
       <span class="switch-link" id="goSignup">Don't have an account? Sign up</span>
       <span class="switch-link" id="goForgotPassword">Forgot password?</span>
+      <p class="message" id="loginMessage"></p>
     </div>
 
     <!-- SIGNUP -->
     <div id="signupSection" style="display:none;">
       <h2 class="auth-title">Create Account</h2>
-      <p class="auth-desc">Join us and start your journey in Swipe today.</p>
+      <p class="auth-desc">Join us and start your journey.</p>
       <div class="input-group">
         <label>Full Name</label>
         <input type="text" id="signupName" placeholder="Enter your full name" required/>
@@ -107,24 +94,13 @@ body.dark{
       </div>
       <button class="auth-btn" id="registerBtn">Create Account</button>
       <span class="switch-link" id="goLogin">Already have an account? Log in</span>
-    </div>
-
-    <!-- OTP VERIFICATION -->
-    <div id="otpSection">
-      <h2 class="auth-title">Enter OTP</h2>
-      <p class="auth-desc">Check your email and enter the 6-digit OTP.</p>
-      <div class="input-group">
-        <label>OTP</label>
-        <input type="text" id="otpInput" placeholder="Enter OTP" required/>
-      </div>
-      <button class="auth-btn" id="verifyOtpBtn">Verify OTP</button>
-      <p id="otpMessage" class="message"></p>
+      <p class="message" id="signupMessage"></p>
     </div>
 
     <!-- FORGOT PASSWORD -->
-    <div id="forgotPasswordSection">
+    <div id="forgotPasswordSection" style="display:none;">
       <h2 class="auth-title">Forgot Password</h2>
-      <p class="auth-desc">Enter your email to reset password.<mark><p>Check your spam for the link</p></mark></p>
+      <p class="auth-desc">Enter your email to reset password.</p>
       <div class="input-group">
         <label>Email</label>
         <input type="email" id="forgotEmail" placeholder="Enter your email" required/>
@@ -147,31 +123,31 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
-// ----- Firebase Config -----
+// Firebase Config
 const firebaseConfig = {
-  apiKey: "AIzaSyCRS5SkPr3yGTiHsuY3Bk3IyuS8k88O878",
-  authDomain: "swipe-f90ed.firebaseapp.com",
-  projectId: "swipe-f90ed",
-  storageBucket: "swipe-f90ed.appspot.com",
-  messagingSenderId: "360540214416",
-  appId: "1:360540214416:web:3e92fe77e5c93283d47415",
-  measurementId: "G-4SV32V4N0N"
+  apiKey: "AIzaSyDXXQvWziaNYaStkNkDjDclNxrVa_7qYX8",
+  authDomain: "chat-34ff3.firebaseapp.com",
+  projectId: "chat-34ff3",
+  storageBucket: "chat-34ff3.appspot.com",
+  messagingSenderId: "391966829170",
+  appId: "1:391966829170:web:2b9fa454e8be176b7930eb",
+  measurementId: "G-81MNVPKD3W"
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// --- DOM Elements ---
+// DOM Elements
 const authBox = document.getElementById("authBox");
 const loginSection = document.getElementById("loginSection");
 const signupSection = document.getElementById("signupSection");
-const otpSection = document.getElementById("otpSection");
 const forgotSection = document.getElementById("forgotPasswordSection");
-const otpMessage = document.getElementById("otpMessage");
+const loginMessage = document.getElementById("loginMessage");
+const signupMessage = document.getElementById("signupMessage");
 const resetMessage = document.getElementById("resetMessage");
 
-// --- FORM SWITCHING ---
+// Form switching
 document.getElementById("goSignup").addEventListener("click", () => {
   authBox.classList.add("expand");
   loginSection.style.display = "none";
@@ -180,7 +156,6 @@ document.getElementById("goSignup").addEventListener("click", () => {
 document.getElementById("goLogin").addEventListener("click", () => {
   authBox.classList.remove("expand");
   signupSection.style.display = "none";
-  otpSection.style.display = "none";
   forgotSection.style.display = "none";
   loginSection.style.display = "block";
 });
@@ -195,69 +170,74 @@ document.getElementById("backToLogin").addEventListener("click", () => {
   authBox.classList.remove("expand");
 });
 
-// --- DARK MODE ---
+// Dark mode
 const themeToggle = document.getElementById("themeToggle");
 themeToggle.addEventListener("click", () => {
   document.body.classList.toggle("dark");
   themeToggle.textContent = document.body.classList.contains("dark") ? "☀" : "🌙";
 });
 
-// --- SIGNUP + OTP ---
-let currentUserId = null;
-let currentOtp = null;
-
-function generateOtp(){ return Math.floor(100000 + Math.random() * 900000).toString(); }
-
+// Signup
 document.getElementById("registerBtn").addEventListener("click", async () => {
   const fullName = document.getElementById("signupName").value.trim();
   const email = document.getElementById("signupEmail").value.trim();
   const gender = document.getElementById("signupGender").value;
   const password = document.getElementById("signupPassword").value;
   const confirmPassword = document.getElementById("signupConfirmPassword").value;
-  if(!fullName||!email||!gender||!password||!confirmPassword){alert("Fill all fields"); return;}
-  if(password!==confirmPassword){alert("Passwords do not match"); return;}
+
+  signupMessage.textContent = "";
+  if(!fullName||!email||!gender||!password||!confirmPassword){
+    signupMessage.className="message error";
+    signupMessage.textContent="Please fill all fields.";
+    return;
+  }
+  if(password!==confirmPassword){
+    signupMessage.className="message error";
+    signupMessage.textContent="Passwords do not match.";
+    return;
+  }
 
   try {
     const userCredential = await createUserWithEmailAndPassword(auth,email,password);
     const user = userCredential.user;
-    currentUserId = user.uid;
-    currentOtp = generateOtp();
     await setDoc(doc(db,"users",user.uid),{
-      fullName,email,gender,createdAt:new Date(),otp:currentOtp
+      fullName,email,gender,createdAt:new Date()
     });
-    console.log("OTP (for testing, replace with email):", currentOtp);
-    signupSection.style.display="none";
-    otpSection.style.display="block";
-  } catch(e){alert(e.message);}
-});
-
-// --- VERIFY OTP ---
-document.getElementById("verifyOtpBtn").addEventListener("click", async () => {
-  const otpInput = document.getElementById("otpInput").value.trim();
-  if(otpInput===currentOtp){
-    otpMessage.className="message success";
-    otpMessage.textContent="OTP verified! You can log in now.";
-    otpSection.style.display="none";
-    loginSection.style.display="block";
-  } else {
-    otpMessage.className="message error";
-    otpMessage.textContent="Incorrect OTP. Try again.";
+    signupMessage.className="message success";
+    signupMessage.textContent="Account created! You can now log in.";
+    setTimeout(()=>{
+      signupSection.style.display="none";
+      loginSection.style.display="block";
+      authBox.classList.remove("expand");
+    },1500);
+  } catch(e){
+    signupMessage.className="message error";
+    signupMessage.textContent=e.message;
   }
 });
 
-// --- LOGIN ---
+// Login
 document.getElementById("loginBtn").addEventListener("click", async () => {
   const email = document.getElementById("loginEmail").value.trim();
   const password = document.getElementById("loginPassword").value;
-  if(!email||!password){alert("Enter email and password.");return;}
+  loginMessage.textContent = "";
+  if(!email||!password){
+    loginMessage.className="message error";
+    loginMessage.textContent="Enter email and password.";
+    return;
+  }
   try{
     await signInWithEmailAndPassword(auth,email,password);
-    alert("Logged in successfully!");
-    window.location.href="profile.html";
-  }catch(e){alert(e.message);}
+    loginMessage.className="message success";
+    loginMessage.textContent="Logged in successfully!";
+    setTimeout(()=>{window.location.href="all-users.html";},500);
+  }catch(e){
+    loginMessage.className="message error";
+    loginMessage.textContent=e.message;
+  }
 });
 
-// --- PASSWORD RESET ---
+// Forgot password
 document.getElementById("sendResetBtn").addEventListener("click", async () => {
   const email = document.getElementById("forgotEmail").value.trim();
   if(!email){ resetMessage.className="message error"; resetMessage.textContent="Enter your email."; return; }
@@ -268,7 +248,7 @@ document.getElementById("sendResetBtn").addEventListener("click", async () => {
   }catch(e){ resetMessage.className="message error"; resetMessage.textContent=e.message; }
 });
 
-// --- SHOW/HIDE PASSWORD ---
+// Show/hide password
 document.querySelectorAll(".toggle-password").forEach(btn=>{
   btn.addEventListener("click",()=>{
     const target = document.getElementById(btn.dataset.target);
@@ -278,4 +258,4 @@ document.querySelectorAll(".toggle-password").forEach(btn=>{
 });
 </script>
 </body>
-                                                                                      </html>
+        </html>
